@@ -297,13 +297,14 @@ static void draw_knobs(int full)
     memcpy(shown.v, v, sizeof v);
     memcpy(shown.title, title, sizeof title);
     memcpy(shown.flags, flags, sizeof flags);
-    H->fill(0, 178, 240, 62, C_BG);
-    H->text(8, 178, 232, 0, title, PC[pg], 0);
-    H->text(240 - 8 - H->text_w(0, flags), 178, H->text_w(0, flags) + 1, 0, flags, C_GEN, 0);
+    H->cv_begin(240, 62, C_BG);                  /* (drawn off screen, then shown at once: clearing it first flickered) */
+    H->cv_text(8, 0, 0, title, PC[pg]);
+    H->cv_text(240 - 8 - H->text_w(0, flags), 0, 0, flags, C_GEN);
     for (k = 0; k < 4; k++) {
-        H->text(k * 60, 200, 60, 0, NAME[pg][k], C_DIM, 1);
-        H->text(k * 60, 218, 60, 0, v[k], C_TXT, 1);
+        H->cv_text(k * 60 + (60 - H->text_w(0, NAME[pg][k])) / 2, 22, 0, NAME[pg][k], C_DIM);
+        H->cv_text(k * 60 + (60 - H->text_w(0, v[k])) / 2, 40, 0, v[k], C_TXT);
     }
+    H->cv_blit(0, 178);
 }
 /* the lights: sent when they change (0 off, 1 lit, 2 the glow) */
 static void lights(int full)
