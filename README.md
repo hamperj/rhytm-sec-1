@@ -55,6 +55,58 @@ On stock fm1-dock, two things differ from the standalone firmware:
 
 If you used the earlier PEEP-1 build, remove it from the module list first.
 
+## Controls
+
+A quick overview. For the full detail, including every style, scale, bass line, bass sound and kit, see the [cheat sheet](docs/cheatsheet.html).
+
+**Transport and arrangement**
+
+| Control | Does |
+|---|---|
+| PLAY | Start / stop. With a DAW playing, joins it in step. |
+| SAVE | Breakdown on the next bar. Press again for a build, and again for the drop. |
+| FX | A fill on the next bar |
+| SEQ | Chords move with the style (lit), or HOLD on the home chord |
+| OCT− / OCT+ | Bass down / up an octave (±2) |
+| HOME (hold 1.5 s) | Settings menu: EQ and MIDI. On fm1-dock, the module list. |
+
+**Pattern**
+
+| Control | Does |
+|---|---|
+| GLO | A whole new pattern from the next bar |
+| REC | LOCK: the pattern stops evolving |
+| Keys C4–F4 | A new pattern for one drum (kick, snare, clap, hat, open hat, perc) |
+| Keys F3–B3 | Mute / unmute kick, snare, clap, hat, open hat, perc, bass |
+
+**Encoders**
+
+| Control | Does | With SEL held |
+|---|---|---|
+| SELECT | Style (changes at once, and resets tempo, density, complexity and sounds) | Tempo, 60–200 BPM |
+| PRESETS | Root note | Scale |
+| ALGORITHM | DJ filter: left is low-pass, right is high-pass, middle is off | Output: right is SPLIT (drums left, bass right), left is stereo |
+
+**Knob pages** (tap SEL to cycle; K1–K4 change the page shown at the bottom of the screen)
+
+| Page | K1 | K2 | K3 | K4 |
+|---|---|---|---|---|
+| DRUMS | Tempo | Swing | Density | Complexity |
+| GEN | Evolve | Every (1–16 bars) | Fills | Ghost notes |
+| BASS | Line | Cutoff | Resonance | Sound |
+| SOUND | Level | Tune (±24 semitones) | Decay | Kit |
+
+On the SOUND page, press keys C4–F4 to pick which drum to edit.
+
+**Screen**
+- **Grid:** bright for steps that play, dim for steps that drop out (in a break or build), white for the current step.
+- **Bass row:** labelled with the current chord's root.
+- **Status line:** EXT plus a tempo when following a DAW's clock, BREAK / BUILD for the section, LP / HP for the filter, SPLIT, the bass octave, HOLD and LOCK.
+
+Over USB MIDI the module follows a DAW's clock: Start, Stop and Continue from a song position.
+
+Settings and the current pattern are saved after it has been stopped and left alone for 10 seconds.
+
 ## Screens
 
 | | |
