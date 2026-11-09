@@ -1,0 +1,238 @@
+<title>RHYTM-SEC-1 Controls</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a hardware reference card — panel sections in a two-column grid, each control as a label/action row,
+   the FM-1 screen's own colours (drums pink, bass crimson, generator green) used as section keys */
+:root {
+  --bg: #f6f4f7;
+  --panel: #ffffff;
+  --ink: #1d1a21;
+  --muted: #6a6372;
+  --line: #e2dde6;
+  --drums: #c2316f;
+  --bass: #b3262b;
+  --gen: #2f7d32;
+  --chip: #efeaf2;
+  --key-white: #ffffff;
+  --key-black: #2a2630;
+  --key-black-ink: #f3eef6;
+  --display: "Chakra Petch", "Barlow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121015; --panel: #1b1820; --ink: #ece7f0; --muted: #9a92a3; --line: #2d2934;
+    --drums: #ff8cb4; --bass: #ec5a5a; --gen: #97e07a; --chip: #26222c;
+    --key-white: #2a2630; --key-black: #0c0a0e; --key-black-ink: #d9d2df;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121015; --panel: #1b1820; --ink: #ece7f0; --muted: #9a92a3; --line: #2d2934;
+  --drums: #ff8cb4; --bass: #ec5a5a; --gen: #97e07a; --chip: #26222c;
+  --key-white: #2a2630; --key-black: #0c0a0e; --key-black-ink: #d9d2df;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.45 var(--body);
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+h1 { font: 700 2.4rem/1 var(--display); letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
+h1 span { color: var(--drums); }
+.sub { color: var(--muted); margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+section.wide { grid-column: 1 / -1; }
+h2 {
+  font: 600 0.82rem/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
+  margin: 0 0 12px; display: flex; align-items: center; gap: 8px; color: var(--muted);
+}
+h2::before { content: ""; width: 10px; height: 10px; border-radius: 2px; background: var(--k, var(--muted)); }
+.k-drums { --k: var(--drums); } .k-bass { --k: var(--bass); } .k-gen { --k: var(--gen); }
+dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; margin: 0; }
+dt { font: 600 0.8rem/1.5 var(--mono); white-space: nowrap; }
+dt .ctl { background: var(--chip); border-radius: 4px; padding: 1px 6px; }
+dt .plus { color: var(--muted); padding: 0 3px; font-weight: 400; }
+dd { margin: 0; }
+dd small, .note { color: var(--muted); }
+.note { font-size: 0.88rem; margin: 10px 0 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.92rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.74rem/1.2 var(--mono); color: var(--muted); letter-spacing: 0.06em; }
+td.pg { font: 700 0.86rem/1.2 var(--display); letter-spacing: 0.08em; white-space: nowrap; }
+td.pg.drums { color: var(--drums); } td.pg.gen { color: var(--gen); } td.pg.bass { color: var(--bass); }
+td b { font-weight: 600; }
+.keys { display: flex; gap: 3px; padding: 4px 0 2px; min-width: 620px; }
+.key {
+  flex: 1 1 0; min-width: 0; border: 1px solid var(--line); border-radius: 0 0 6px 6px;
+  background: var(--key-white); padding: 6px 4px 8px; height: 112px;
+  display: flex; flex-direction: column; justify-content: space-between; text-align: center;
+}
+.key.black { background: var(--key-black); color: var(--key-black-ink); border-color: var(--key-black); height: 96px; }
+.key .n { font: 600 0.72rem/1 var(--mono); opacity: 0.7; }
+.key .a { font: 600 0.78rem/1.15 var(--body); }
+.key.mute { box-shadow: inset 0 -4px 0 var(--drums); }
+.key.mute.bassk { box-shadow: inset 0 -4px 0 var(--bass); }
+.key.draw { box-shadow: inset 0 -4px 0 var(--gen); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.88rem; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { background: var(--chip); border-radius: 4px; padding: 2px 7px; font: 500 0.8rem/1.5 var(--mono); }
+.lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px 24px; }
+.lists h3 { font: 600 0.78rem/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px; color: var(--muted); }
+.flag { font: 600 0.8rem/1.5 var(--mono); color: var(--gen); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>RHYTM-SEC<span>-1</span></h1>
+    <p class="sub">Generative drums and bass for fm1-dock on the FM-1 · after PERF-1 by deamonSLINKY</p>
+  </header>
+
+  <div class="grid">
+    <section>
+      <h2>Transport &amp; arrangement</h2>
+      <dl>
+        <dt><span class="ctl">PLAY</span></dt><dd>Start / stop <small>(DAW playing: joins it in step; DAW stopped but its clock running: from the top on the next pulse)</small></dd>
+        <dt><span class="ctl">SAVE</span></dt><dd>Breakdown on the next bar → press again: build → again: the drop <small>(in a breakdown the bass holds the chord's root and the hats keep their surest hits)</small></dd>
+        <dt><span class="ctl">FX</span></dt><dd>A fill on the next bar</dd>
+        <dt><span class="ctl">SEQ</span></dt><dd>Chords move with the style (lit) / <b>HOLD</b> on the home chord (dim)</dd>
+        <dt><span class="ctl">OCT−</span> <span class="ctl">OCT+</span></dt><dd>Bass down / up an octave (±2)</dd>
+        <dt><span class="ctl">HOME</span> 1.5 s</dt><dd>fm1-dock's module list</dd>
+      </dl>
+    </section>
+
+    <section class="k-gen">
+      <h2>Pattern</h2>
+      <dl>
+        <dt><span class="ctl">GLO</span></dt><dd>A whole new pattern, from the next bar</dd>
+        <dt><span class="ctl">REC</span></dt><dd><b>LOCK</b>: the pattern stops evolving (lit while locked)</dd>
+        <dt>keys C4–F4</dt><dd>New pattern for one drum, from the next bar</dd>
+      </dl>
+      <p class="note">Patterns are drawn from each style's feel and evolve a step or two at a time (GEN page). Density and complexity add or remove hits smoothly; turning back brings the same ones back.</p>
+    </section>
+
+    <section>
+      <h2>Encoders</h2>
+      <dl>
+        <dt><span class="ctl">SELECT</span></dt><dd>Style <small>(changes at once; resets tempo, density, complexity, sounds)</small></dd>
+        <dt><span class="ctl">PRESETS</span></dt><dd>Root note</dd>
+        <dt><span class="ctl">ALGORITHM</span></dt><dd>DJ filter: left low-pass, right high-pass, middle off</dd>
+        <dt><span class="ctl">K1</span>–<span class="ctl">K4</span></dt><dd>The page shown at the bottom of the screen (below)</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Hold SEL +</h2>
+      <dl>
+        <dt><span class="ctl">SEL</span><span class="plus">+</span><span class="ctl">SELECT</span></dt><dd>Tempo (60–200 BPM)</dd>
+        <dt><span class="ctl">SEL</span><span class="plus">+</span><span class="ctl">PRESETS</span></dt><dd>Scale</dd>
+        <dt><span class="ctl">SEL</span><span class="plus">+</span><span class="ctl">ALGORITHM</span></dt><dd>Output: right = <b>SPLIT</b> (drums left, bass right), left = stereo</dd>
+        <dt><span class="ctl">SEL</span> tap</dt><dd>Next knob page (turns on release)</dd>
+      </dl>
+    </section>
+
+    <section class="wide">
+      <h2>Knob pages · tap SEL to cycle</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>PAGE</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead>
+          <tbody>
+            <tr><td class="pg drums">DRUMS</td><td><b>Tempo</b></td><td><b>Swing</b> 0–100</td><td><b>Density</b> 0–100, 50 as the style plays</td><td><b>Complexity</b> 0–100: low = the style's surest hits, high = looser</td></tr>
+            <tr><td class="pg gen">GEN</td><td><b>Evolve</b> 0–100, 0 off</td><td><b>Every</b> 1 · 2 · 4 · 8 · 16 bars</td><td><b>Fills</b> off · every 4 · 8 · 16 · 32 bars</td><td><b>Ghost</b> notes 0–100</td></tr>
+            <tr><td class="pg bass">BASS</td><td><b>Line</b> (rhythm, list below)</td><td><b>Cutoff</b> 0–100</td><td><b>Reso</b> 0–100</td><td><b>Sound</b> (24, list below)</td></tr>
+            <tr><td class="pg drums">SOUND</td><td><b>Level</b> 0–100</td><td><b>Tune</b> ±24 semitones</td><td><b>Decay</b> 0–100</td><td><b>Kit</b> (14, list below)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">On the SOUND page the page title shows the drum being edited; pick it with keys C4–F4. Clap shares the snare's kit, open hat shares the hats'.</p>
+    </section>
+
+    <section class="wide">
+      <h2>Keys</h2>
+      <div class="scroll">
+        <div class="keys" aria-label="Keys F3 to F4">
+          <div class="key mute"><span class="n">F3</span><span class="a">Mute kick</span></div>
+          <div class="key black mute"><span class="n">F#3</span><span class="a">Mute snare</span></div>
+          <div class="key mute"><span class="n">G3</span><span class="a">Mute clap</span></div>
+          <div class="key black mute"><span class="n">G#3</span><span class="a">Mute hat</span></div>
+          <div class="key mute"><span class="n">A3</span><span class="a">Mute open hat</span></div>
+          <div class="key black mute"><span class="n">A#3</span><span class="a">Mute perc</span></div>
+          <div class="key mute bassk"><span class="n">B3</span><span class="a">Mute bass</span></div>
+          <div class="key draw"><span class="n">C4</span><span class="a">Kick</span></div>
+          <div class="key black draw"><span class="n">C#4</span><span class="a">Snare</span></div>
+          <div class="key draw"><span class="n">D4</span><span class="a">Clap</span></div>
+          <div class="key black draw"><span class="n">D#4</span><span class="a">Hat</span></div>
+          <div class="key draw"><span class="n">E4</span><span class="a">Open hat</span></div>
+          <div class="key draw"><span class="n">F4</span><span class="a">Perc</span></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background: var(--drums)"></i>Mute toggles · lit = playing</span>
+        <span><i style="background: var(--gen)"></i>New pattern for that drum · on the SOUND page: select that drum</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Screen</h2>
+      <dl>
+        <dt>Grid</dt><dd>Bright: played · dim: in the pattern but not played (a break, a build) · white: now. Stopped: the pattern.</dd>
+        <dt>Bass row</dt><dd>Labelled with the chord's root (it changes as the chords move)</dd>
+        <dt class="flag">EXT 124</dt><dd>Following a DAW's MIDI clock at that tempo</dd>
+        <dt class="flag">BREAK / BUILD 3</dt><dd>Section, with the build's bars left</dd>
+        <dt class="flag">LP40 / HP25</dt><dd>DJ filter amount</dd>
+        <dt class="flag">SPLIT</dt><dd>Drums left, bass right</dd>
+        <dt class="flag">O-1</dt><dd>Bass octave shift</dd>
+        <dt class="flag">HOLD · LOCK</dt><dd>Chords held (SEQ) · pattern locked (REC). If space runs out these drop first; their buttons still show them.</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>DAW · USB</h2>
+      <dl>
+        <dt>MIDI clock</dt><dd>Over USB only. DAW Start: from the top. Playing from a later point (song position + Continue): from that point. Stop stops. No clock for ½ s: back to RHYTM-SEC-1's own tempo.</dd>
+        <dt>USB inputs</dt><dd>With the <code>stems4</code> firmware:</dd>
+      </dl>
+      <div class="chips" style="margin-top:8px">
+        <span>1–2 Master (stereo)</span><span>3 Bass</span><span>4 Kick</span><span>5 Snare + clap</span><span>6 Hats + perc</span>
+      </div>
+      <p class="note">All USB audio is at full level whatever the MASTER knob says: turn MASTER down to silence the speaker and keep recording. Stems follow mutes and the DJ filter. Settings and the current pattern are saved once RHYTM-SEC-1 has been stopped and left alone for 10 s, and when you leave it with HOME.</p>
+    </section>
+
+    <section class="wide">
+      <h2>Lists</h2>
+      <div class="lists">
+        <div>
+          <h3>Styles (SELECT)</h3>
+          <div class="chips"><span>Hypno</span><span>Lofi</span><span>House</span><span>Dubstep</span><span>Dub</span><span>DnB</span><span>Breaks</span><span>Garage</span><span>Electro</span><span>Trap</span><span>Disco</span><span>Funk</span><span>Reggae</span><span>Synthwave</span><span>Amapiano</span><span>Trip-hop</span><span>Industrial</span><span>Psy</span><span>Forest</span></div>
+        </div>
+        <div>
+          <h3>Scales (SEL + PRESETS)</h3>
+          <div class="chips"><span>Major</span><span>Dorian</span><span>Phrygian</span><span>Lydian</span><span>Mixolydian</span><span>Minor</span><span>Pent major</span><span>Pent minor</span></div>
+        </div>
+        <div>
+          <h3>Bass lines (BASS K1)</h3>
+          <div class="chips"><span>Drone</span><span>Root</span><span>Kick</span><span>Eighths</span><span>Offbeat</span><span>Walk</span><span>Riff</span><span>Octaves</span><span>Two-step</span><span>One-drop</span><span>Log drum</span><span>Skippy</span><span>Funk</span><span>Big beat</span><span>Dub</span><span>Gallop</span></div>
+        </div>
+        <div>
+          <h3>Bass sounds (BASS K4)</h3>
+          <div class="chips"><span>Saws</span><span>Warm</span><span>Grit</span><span>Dirty</span><span>Reese</span><span>Pulse</span><span>FM</span><span>Organ</span><span>Rumble</span><span>Sub</span><span>Square</span><span>Hoover</span><span>Fifths</span><span>Metal</span><span>Sync</span><span>Bright</span><span>Wub</span><span>Bite</span><span>Tine</span><span>Clang</span><span>Gnarl</span><span>Wide</span><span>Power</span><span>Air</span></div>
+        </div>
+        <div>
+          <h3>Drum kits (SOUND K4)</h3>
+          <div class="chips"><span>Hypno</span><span>House</span><span>Techno</span><span>Acid</span><span>Break</span><span>Minimal</span><span>Hard</span><span>808</span><span>Dusty</span><span>Heavy</span><span>909</span><span>Electro</span><span>DnB</span><span>Trap</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
