@@ -13,7 +13,7 @@ RHYTM-SEC-1 is free software under the GNU General Public License, version 3 onl
 
 ## The released firmware
 
-The released `.fwsc` is fm1-dock at commit 3ec04e5 with `patches/fm1-dock-host.patch` applied, built as the README describes. Its complete source is fm1-dock at that commit plus this repository. JieLi's AC79 SDK files (`uboot.boot`, `cfg_tool.bin`, `eq_cfg_hw.bin`, Apache-2.0) are in the package, as in every fm1-dock build.
+The released `.fwsc` is fm1-dock at commit 3ec04e5 (the `fm1-dock/` submodule) with `patches/fm1-dock-host.patch` applied, built by `build.sh` as a single-app firmware with the module built in. Its complete source is this repository with its submodule. JieLi's AC79 SDK files (`uboot.boot`, `cfg_tool.bin`, `eq_cfg_hw.bin`, Apache-2.0) are in the package, as in every fm1-dock build.
 
 ## Trademarks
 

@@ -1,0 +1,4 @@
+[submodule "fm1-dock"]
+	path = fm1-dock
+	url = https://github.com/joakimeriksson/fm1-dock
+	ignore = dirty
