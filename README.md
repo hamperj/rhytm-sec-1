@@ -18,7 +18,7 @@ It uses the drums and bass from deamonSLINKY's [PERF-1](https://github.com/deamo
 - MIDI clock sync over USB, including the DAW's song position
 - USB audio with stems: a stereo master plus mono bass, kick, snare + clap, and hats + perc, always at full level whatever the MASTER knob is set to
 
-The full control reference is in [docs/cheatsheet.html](docs/cheatsheet.html).
+The full control reference is in [the cheat sheet](https://hamperj.github.io/rhytm-sec-1/cheatsheet.html).
 
 ## Install
 
@@ -57,7 +57,7 @@ If you used the earlier PEEP-1 build, remove it from the module list first.
 
 ## Controls
 
-A quick overview. For the full detail, including every style, scale, bass line, bass sound and kit, see the [cheat sheet](docs/cheatsheet.html).
+A quick overview. For the full detail, including every style, scale, bass line, bass sound and kit, see the [cheat sheet](https://hamperj.github.io/rhytm-sec-1/cheatsheet.html).
 
 **Transport and arrangement**
 
