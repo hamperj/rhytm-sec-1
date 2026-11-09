@@ -22,7 +22,16 @@ The full control reference is in [docs/cheatsheet.html](docs/cheatsheet.html).
 
 ## Install
 
-1. Download **`rhytm-sec-1-1.1.fwsc`** from the [latest release](../../releases/latest).
+Every [release](../../releases/latest) has two files. Pick one:
+
+| File | What it is |
+|---|---|
+| `rhytm-sec-1-X.Y.fwsc` | **Standalone firmware.** The FM-1 runs RHYTM-SEC-1 and nothing else. |
+| `rhytmsec1.dock` | **fm1-dock module.** For people already running [fm1-dock](https://github.com/joakimeriksson/fm1-dock) who want RHYTM-SEC-1 alongside their other synths. |
+
+### Standalone firmware
+
+1. Download `rhytm-sec-1-X.Y.fwsc` from the latest release.
 2. Install it with your FM-1 firmware flash tool.
 
 The FM-1 starts straight into RHYTM-SEC-1. To go back to another firmware, flash that firmware the same way.
@@ -34,6 +43,17 @@ The firmware identifies itself as `FM-1_947` to installers.
 - Holding **OCT+** at power-on starts in safe mode with the test sine only.
 
 Bluetooth MIDI is left out of this build to make room for the module.
+
+### fm1-dock module
+
+1. Download `rhytmsec1.dock` from the latest release.
+2. Add it from fm1-dock's module page, like any other module.
+
+On stock fm1-dock, two things differ from the standalone firmware:
+- USB audio is plain stereo and follows MASTER.
+- A DAW's Continue restarts from the top instead of the song position.
+
+If you used the earlier PEEP-1 build, remove it from the module list first.
 
 ## Screens
 
@@ -50,7 +70,7 @@ Bluetooth MIDI is left out of this build to make room for the module.
 
 The screens are drawn by the module's own code on a computer, through fm1-dock's text and graphics code (`tools/shots.sh`). The top line is the one the firmware shows; its CPU figure here is a placeholder.
 
-## USB audio channels
+## USB audio channels (standalone firmware)
 
 | Input | Signal |
 |---|---|
@@ -71,13 +91,14 @@ You need what fm1-dock's build needs:
 
 ```bash
 git clone --recursive https://github.com/hamperj/rhytm-sec-1 && cd rhytm-sec-1
-./build.sh                      # -> build/rhytm-sec-1-1.1.fwsc (VERSION=X.Y ./build.sh for another number)
+./build.sh                      # -> build/rhytm-sec-1-1.1.fwsc and build/rhytmsec1.dock (VERSION=X.Y for another number)
 ```
 
 How the build works:
 - `fm1-dock/` is a submodule pinned to fm1-dock 0.7.1 (commit 3ec04e5).
 - `build.sh` applies `patches/fm1-dock-host.patch`, copies `rhytmsec1/` into fm1-dock's modules, and builds fm1-dock as a solo app with that one module.
-- The release `.fwsc` comes from exactly this script.
+- One build gives both release files: the standalone `.fwsc` and the fm1-dock `.dock`.
+- `tools/release.sh X.Y` builds both and publishes a GitHub release with both attached.
 
 The patch holds every change to fm1-dock itself:
 - the UC25HQ80 flash chip ID, for newer FM-1s
@@ -108,10 +129,6 @@ cd gen
 clang -O0 -w -DEN_HOST -I../perf1/firmware/src/dsp -I../perf1/firmware/src dump.c -o dump -Wl,-undefined,dynamic_lookup
 ./dump > ../rhytmsec1/perf/styles.h
 ```
-
-### As an fm1-dock module
-
-If you'd rather run it alongside other synths on fm1-dock, the release also has `rhytmsec1.dock`. Add it from fm1-dock's module page. On stock fm1-dock the USB audio is plain stereo and follows MASTER.
 
 ## Status
 
