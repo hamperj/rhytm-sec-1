@@ -5,8 +5,10 @@
  *   PLAY            start / stop
  *   SELECT          style (genre)    PRESETS  root note (both at once; a new style: its own density, complexity back to 45)
  *   ALGORITHM       the DJ filter: left a low-pass, right a high-pass, the middle off
+ *   HOME            the HOME page: kit (all the drums', or the style's own), intensity (density and complexity
+ *                   together), the bass line and sound
  *   SEL             the knobs' page: DRUMS (tempo, swing, density, complexity), GEN (evolve, every, fills, ghosts),
- *                   BASS (line, cutoff, drive, sound), SOUND (one drum's level, tune, decay, kit)
+ *                   BASS (line, cutoff, drive, sound), SOUND (one drum's level, tune, decay, kit), HOME
  *   SEL + SELECT    the tempo        SEL + PRESETS     the scale
  *   SEL + ALGORITHM the output: stereo, or split (drums left, bass right)
  *                   (a host built with USB stems, --uac-stems 4, also records bass, kick, snare + clap, hats + perc,
@@ -21,7 +23,7 @@
  *                   its knobs set
  * Its settings and the pattern itself are kept: saved once it has been stopped and left alone for 10 s (fm1-dock writes a
  * save to flash 2 s later with the interrupts off, which would stop the sound if it were playing by then).
- * HOME held 1.5 s alone opens fm1-dock's module list. */
+ * HOME held 1.5 s alone opens fm1-dock's module list (a tap is the HOME page). */
 #include "hb_module.h"
 #include "db_engine.c"
 
@@ -80,6 +82,21 @@ static void user_apply(void)                     /* the player's values over the
         for (l = 1; l < EN_NLANE; l++)
             par[Q_DENS + l] = rec.u[U_DENS];
     apply_all();
+}
+#define PG_SOUND 3u
+#define PG_HOME 4u
+#define NPAGE 5u
+static unsigned page(void) { return rec.page % NPAGE; }
+#define KIT_BITS (0xFu << U_KIT)
+static int kit_all(void)                         /* the HOME page's kit: -1 the style's own, -2 mixed, else all four's */
+{
+    int j;
+    if (!(rec.set & KIT_BITS))
+        return -1;
+    for (j = 1; j < 4; j++)
+        if (par[Q_KIT_KICK + j] != par[Q_KIT_KICK])
+            return -2;
+    return par[Q_KIT_KICK];
 }
 static void user_set(int k, int v)
 {
@@ -201,7 +218,7 @@ static void draw_grid(int full)
 {
     static const char *const LBL[6] = {"K", "S", "C", "H", "O", "P"};
     uint16_t cell[7][16], lbl[7];
-    const int cur = en_playing ? (int)((sixteenth - 1u) & 15u) : -1, sound = rec.page % 4u == 3u;
+    const int cur = en_playing ? (int)((sixteenth - 1u) & 15u) : -1, sound = page() == PG_SOUND;
     const uint8_t chord = en_chord_root % 12u;
     int r, s;
     for (r = 0; r < 7; r++) {
@@ -231,14 +248,15 @@ static void draw_grid(int full)
 }
 static void draw_knobs(int full)
 {
-    static const char *const NAME[4][4] = {{"TEMPO", "SWING", "DENS", "CMPLX"}, {"EVOLVE", "EVERY", "FILLS", "GHOST"},
-                                           {"LINE", "CUTOFF", "DRIVE", "SOUND"}, {"LEVEL", "TUNE", "DECAY", "KIT"}};
-    static const char *const PAGE[3] = {"DRUMS", "GEN", "BASS"};
-    static const uint16_t PC[4] = {C_ACC, C_GEN, C_BASS, C_ACC};
+    static const char *const NAME[NPAGE][4] = {{"TEMPO", "SWING", "DENS", "CMPLX"}, {"EVOLVE", "EVERY", "FILLS", "GHOST"},
+                                               {"LINE", "CUTOFF", "DRIVE", "SOUND"}, {"LEVEL", "TUNE", "DECAY", "KIT"},
+                                               {"KIT", "INTENS", "LINE", "SOUND"}};
+    static const char *const PAGE[NPAGE] = {"DRUMS", "GEN", "BASS", "", "HOME"};
+    static const uint16_t PC[NPAGE] = {C_ACC, C_GEN, C_BASS, C_ACC, C_TXT};
     char v[4][12], title[12], flags[40], cand[5][8];
     int k, nc = 0;
     int32_t room;
-    const int pg = rec.page % 4u, sl = rec.sel % EN_NLANE;
+    const int pg = (int)page(), sl = rec.sel % EN_NLANE;
     memset(v, 0, sizeof v);
     memset(flags, 0, sizeof flags);
     memset(title, 0, sizeof title);
@@ -255,10 +273,16 @@ static void draw_knobs(int full)
         else
             cat(v[2], "Off");
         num(v[3], par[Q_GHOST]);
-    } else if (pg == 2) {
-        cat(v[0], BL_NAME[(unsigned)par[Q_BL_MODE] < 16u ? par[Q_BL_MODE] : 0]);
-        hz(v[1], en_cut_hz());
-        num(v[2], par[Q_BDRV]);
+    } else if (pg == 2 || pg == PG_HOME) {
+        cat(v[pg == 2 ? 0 : 2], BL_NAME[(unsigned)par[Q_BL_MODE] < 16u ? par[Q_BL_MODE] : 0]);
+        if (pg == 2) {
+            hz(v[1], en_cut_hz());
+            num(v[2], par[Q_BDRV]);
+        } else {
+            const int kit = kit_all();
+            cat(v[0], kit == -1 ? "Style" : kit == -2 ? "Mixed" : KIT_NAME[(unsigned)kit < EN_NKIT ? kit : 0]);
+            num(v[1], (par[Q_DENS] + rec.cplx + 1) / 2);   /* (the two it moves, together) */
+        }
         cat(v[3], DRONE_NAME[(unsigned)par[Q_DR_INST] < EN_NSOUND ? par[Q_DR_INST] : 0]);
     } else {
         char *p = v[1];
@@ -269,7 +293,7 @@ static void draw_knobs(int full)
         num(v[2], par[Q_LANE + 3 * sl + 2]);
         cat(v[3], KIT_NAME[(unsigned)par[Q_KIT_KICK + LANE_KIT[sl]] < EN_NKIT ? par[Q_KIT_KICK + LANE_KIT[sl]] : 0]);
     }
-    cat(title, pg == 3 ? LANE_NAME[sl] : PAGE[pg]);
+    cat(title, pg == PG_SOUND ? LANE_NAME[sl] : PAGE[pg]);
     /* the flags, most wanted first, as many as fit beside the title (LOCK and HOLD also show on REC and SEQ) */
     if (dj_filter)
         num(cat(cand[nc++], dj_filter < 0 ? "LP" : "HP"), dj_filter < 0 ? -dj_filter : dj_filter);
@@ -300,8 +324,13 @@ static void draw_knobs(int full)
     H->cv_begin(240, 62, C_BG);                  /* (drawn off screen, then shown at once: clearing it first flickered) */
     H->cv_text(8, 0, 0, title, PC[pg]);
     H->cv_text(240 - 8 - H->text_w(0, flags), 0, 0, flags, C_GEN);
+    if (pg == PG_HOME) {                         /* (K1, K2 the drums', K3, K4 the bass's: the grid's colours) */
+        H->cv_rect(6, 18, 108, 2, C_ACC);
+        H->cv_rect(126, 18, 108, 2, C_BASS);
+    }
     for (k = 0; k < 4; k++) {
-        H->cv_text(k * 60 + (60 - H->text_w(0, NAME[pg][k])) / 2, 22, 0, NAME[pg][k], C_DIM);
+        H->cv_text(k * 60 + (60 - H->text_w(0, NAME[pg][k])) / 2, 22, 0, NAME[pg][k],
+                   pg != PG_HOME ? C_DIM : k < 2 ? C_ACC : C_BASS);
         H->cv_text(k * 60 + (60 - H->text_w(0, v[k])) / 2, 40, 0, v[k], C_TXT);
     }
     H->cv_blit(0, 178);
@@ -322,7 +351,7 @@ static void lights(int full)
     for (k = 0; k < 7; k++)
         led[7 + k] = en_lane_mute >> k & 1u ? 0u : 1u;
     for (k = 0; k < 6; k++)
-        led[14 + k] = (rec.page % 4u == 3u ? rec.sel == k : gen_lane_new >> k & 1u) ? 1u : 0u;
+        led[14 + k] = (page() == PG_SOUND ? rec.sel == k : gen_lane_new >> k & 1u) ? 1u : 0u;
     for (k = 0; k < 20; k++)
         if (full || led[k] != shown.led[k]) {
             shown.led[k] = led[k];
@@ -331,13 +360,14 @@ static void lights(int full)
 }
 
 /* ---- the panel */
-static uint8_t sel_held, sel_used;
+static uint8_t sel_held, sel_used, home_held, home_used;
+static uint32_t home_t0;
 static int32_t clampi(int32_t v, int32_t lo, int32_t hi) { return v < lo ? lo : v > hi ? hi : v; }
 static int32_t step1(int32_t d) { return d > 0 ? 1 : -1; }
 static void knob(int k, int32_t d)
 {
     const int sl = rec.sel % EN_NLANE;
-    switch (rec.page % 4u * 4u + (uint32_t)k) {
+    switch (page() * 4u + (uint32_t)k) {
     case 0: user_set(U_TEMPO, clampi(par[Q_TEMPO] + d, 60, 200)); break;
     case 1: user_set(U_SWING, clampi(par[Q_SWING] + d, 0, 100)); break;
     case 2: user_set(U_DENS, clampi(par[Q_DENS] + d * 2, 0, 100)); break;
@@ -346,14 +376,34 @@ static void knob(int k, int32_t d)
     case 5: rec.every = (uint8_t)clampi(rec.every + step1(d), 0, 4); break;
     case 6: rec.fills = (uint8_t)clampi(rec.fills + step1(d), 0, 4); break;
     case 7: user_set(U_GHOST, clampi(par[Q_GHOST] + d * 2, 0, 100)); break;
-    case 8: user_set(U_LINE, clampi(par[Q_BL_MODE] + step1(d), 0, 15)); break;
+    case 8:
+    case 18: user_set(U_LINE, clampi(par[Q_BL_MODE] + step1(d), 0, 15)); break;
     case 9: user_set(U_CUT, clampi(par[Q_DR_CUT] + d * 2, 0, 100)); break;
     case 10: user_set(U_DRIVE, clampi(par[Q_BDRV] + d * 2, 0, 100)); break;
-    case 11: user_set(U_SOUND, clampi(par[Q_DR_INST] + step1(d), 0, EN_NSOUND - 1)); break;
+    case 11:
+    case 19: user_set(U_SOUND, clampi(par[Q_DR_INST] + step1(d), 0, EN_NSOUND - 1)); break;
     case 12: user_set(U_LANE + 3 * sl, clampi(par[Q_LANE + 3 * sl] + d * 2, 0, 100)); break;
     case 13: user_set(U_LANE + 3 * sl + 1, clampi(par[Q_LANE + 3 * sl + 1] + step1(d), -24, 24)); break;   /* semitones */
     case 14: user_set(U_LANE + 3 * sl + 2, clampi(par[Q_LANE + 3 * sl + 2] + d * 2, 0, 100)); break;
-    default: user_set(U_KIT + LANE_KIT[sl], clampi(par[Q_KIT_KICK + LANE_KIT[sl]] + step1(d), 0, EN_NKIT - 1)); break;
+    case 15: user_set(U_KIT + LANE_KIT[sl], clampi(par[Q_KIT_KICK + LANE_KIT[sl]] + step1(d), 0, EN_NKIT - 1)); break;
+    case 16: {                                   /* all four kits at once; below the first: the style's own again */
+        const int kit = kit_all(), n = clampi((kit == -2 ? par[Q_KIT_KICK] : kit) + step1(d), -1, EN_NKIT - 1);
+        int j;
+        rec.set &= ~KIT_BITS;
+        for (j = 0; j < 4; j++) {
+            par[Q_KIT_KICK + j] = n < 0 ? STYLE_PAR[genre][Q_KIT_KICK + j] : (int16_t)n;
+            rec.u[U_KIT + j] = (int16_t)n;
+        }
+        if (n >= 0)
+            rec.set |= KIT_BITS;
+        user_apply();
+        break;
+    }
+    case 17:                                     /* intensity: density and complexity together */
+        user_set(U_DENS, clampi(par[Q_DENS] + d * 2, 0, 100));
+        rec.cplx = (uint8_t)clampi(rec.cplx + d * 2, 0, 100);
+        break;
+    default: break;
     }
     gen_push();
     mark();
@@ -364,6 +414,7 @@ static void ui(uint32_t ev, int32_t arg)
     idle_since = H->ms();
     switch (HB_EV_KIND(ev)) {
     case HB_EV_ENC:
+        home_used = 1;                           /* (HOME held for something else: not a tap) */
         if (sel_held)
             sel_used = 1;                        /* (SEL held for a knob: no page turn when it is let go) */
         if (id == HB_ENC_SELECT && sel_held) {
@@ -395,7 +446,9 @@ static void ui(uint32_t ev, int32_t arg)
         }
         break;
     case HB_EV_BTN_DOWN:
+        home_used |= id != HB_BTN_HOME;
         switch (id) {
+        case HB_BTN_HOME: home_held = 1; home_used = 0; home_t0 = H->ms(); break;
         case HB_BTN_PLAY: en_play_button(); break;
         case HB_BTN_SEL: sel_held = 1; sel_used = 0; break;   /* (the page turns when it is let go, unless it was held for a knob) */
         case HB_BTN_SAVE:                         /* groove: break; break: build; build: the drop (all on the bar) */
@@ -413,18 +466,26 @@ static void ui(uint32_t ev, int32_t arg)
     case HB_EV_BTN_UP:
         if (id == HB_BTN_SEL) {
             if (!sel_used) {
-                rec.page = (uint8_t)((rec.page + 1u) % 4u);
+                rec.page = (uint8_t)((page() + 1u) % NPAGE);
                 mark();
             }
             sel_held = 0;
         }
+        if (id == HB_BTN_HOME && home_held) {   /* a tap: the HOME page (held 1.5 s, fm1-dock's menu: it lets go for it) */
+            if (!home_used && H->ms() - home_t0 < 1000u) {
+                rec.page = PG_HOME;
+                mark();
+            }
+            home_held = 0;
+        }
         break;
     case HB_EV_KEY_DOWN:
+        home_used = 1;
         if (id < 7u) {
             en_lane_mute ^= 1u << id;
             rec.mute = (uint8_t)en_lane_mute;
             mark();
-        } else if (id < 13u && rec.page % 4u == 3u) {
+        } else if (id < 13u && page() == PG_SOUND) {
             rec.sel = (uint8_t)(id - 7u);        /* the SOUND page: this drum's knobs */
             mark();
         } else if (id < 13u) {
@@ -485,6 +546,7 @@ static int init(const hb_host_t *h)
         rec.every = 1;                           /* every 2 bars */
         rec.fills = 2;                           /* a fill every 8 bars */
         rec.chords = 1;
+        rec.page = PG_HOME;
         for (l = 0; l < EN_NLANE; l++)
             thr_draw(l);
     } else {

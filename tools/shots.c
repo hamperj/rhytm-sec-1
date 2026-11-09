@@ -132,8 +132,11 @@ int main(int argc, char **argv)
     shot(dir, "01-stopped");
     btn(HB_BTN_PLAY);
     run_ms(7000);
-    shot(dir, "02-house-playing");
+    shot(dir, "02-house-playing");             /* (on the HOME page, where it starts) */
     btn(HB_BTN_SEL);                            /* the knob pages */
+    run_ms(1500);
+    shot(dir, "09-drums-page");
+    btn(HB_BTN_SEL);
     run_ms(1500);
     shot(dir, "03-page-2");
     btn(HB_BTN_SEL);

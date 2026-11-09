@@ -5,7 +5,7 @@ Standalone firmware for the M-VAVE FM-1 that turns it into a generative drum mac
 It uses the drums and bass from deamonSLINKY's [PERF-1](https://github.com/deamonSLINKY/PERF-1). Patterns are drawn from each genre's hit probabilities instead of fixed presets, so they keep evolving while you play. It's built for working up ideas rather than full songs.
 
 <p>
-<img src="docs/screens/02-house-playing.png" width="240" alt="House playing: the step grid, with the drum knob page">
+<img src="docs/screens/02-house-playing.png" width="240" alt="House playing: the step grid, with the HOME page">
 <img src="docs/screens/07-break.png" width="240" alt="Dubstep in a break: steps that don't play are dimmed">
 <img src="docs/screens/05-sound-page.png" width="240" alt="The sound page with the snare selected">
 </p>
@@ -68,6 +68,7 @@ A quick overview. For the full detail, including every style, scale, bass line, 
 | FX | A fill on the next bar |
 | SEQ | Chords move with the style (lit), or HOLD on the home chord |
 | OCT− / OCT+ | Bass down / up an octave (±2) |
+| HOME | The HOME page (below) |
 | HOME (hold 1.5 s) | Settings menu: EQ and MIDI. On fm1-dock, the module list. |
 
 **Pattern**
@@ -87,10 +88,11 @@ A quick overview. For the full detail, including every style, scale, bass line, 
 | PRESETS | Root note | Scale |
 | ALGORITHM | DJ filter: left is low-pass, right is high-pass, middle is off | Output: right is SPLIT (drums left, bass right), left is stereo |
 
-**Knob pages** (tap SEL to cycle; K1–K4 change the page shown at the bottom of the screen)
+**Knob pages** (tap SEL to cycle, or HOME for the HOME page; K1–K4 change the page shown at the bottom of the screen)
 
 | Page | K1 | K2 | K3 | K4 |
 |---|---|---|---|---|
+| HOME | Kit: all the drums at once, or Style for the style's own mix | Intensity: density and complexity together | Line | Sound |
 | DRUMS | Tempo | Swing | Density | Complexity |
 | GEN | Evolve | Every (1–16 bars) | Fills | Ghost notes |
 | BASS | Line | Cutoff (Hz) | Drive (0 clean, 50 as designed, 100 distorted) | Sound |
@@ -112,9 +114,11 @@ Settings and the current pattern are saved after it has been stopped and left al
 | | |
 |---|---|
 | ![Stopped](docs/screens/01-stopped.png) | ![Playing](docs/screens/02-house-playing.png) |
-| Stopped: style, key, tempo, the pattern and the drum knobs | Playing: steps that play light up, the white column is the current step |
-| ![Generator page](docs/screens/03-page-2.png) | ![Bass page](docs/screens/04-page-3.png) |
-| Tap SEL for the generator page: evolve, how often, fills, ghosts | The bass page: line, cutoff, drive, sound |
+| Stopped: style, key, tempo, the pattern and the HOME page | Playing: steps that play light up, the white column is the current step |
+| ![Drums page](docs/screens/09-drums-page.png) | ![Generator page](docs/screens/03-page-2.png) |
+| Tap SEL for the drums page: tempo, swing, density, complexity | The generator page: evolve, how often, fills, ghosts |
+| ![Bass page](docs/screens/04-page-3.png) | |
+| The bass page: line, cutoff, drive, sound | |
 | ![Sound page](docs/screens/05-sound-page.png) | ![New style](docs/screens/06-style-changed.png) |
 | The sound page: press a drum's key to pick it (here the snare) | A new style changes at once |
 | ![Break](docs/screens/07-break.png) | ![Filter](docs/screens/08-filter-fill.png) |
