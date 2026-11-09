@@ -184,7 +184,7 @@ clang -O0 -w -DEN_HOST -I../perf1/firmware/src/dsp -I../perf1/firmware/src dump.
 
 ## Status
 
-Tested with the native engine tests and on one FM-1 (a UC25HQ80 unit) as an fm1-dock module. The single-app firmware itself hasn't been run on hardware yet. The CPU headroom while recording stems hasn't been measured on hardware.
+**Tested on real hardware:** both the standalone firmware and the fm1-dock module, on an FM-1 with the newer UC25HQ80 flash chip. The engine also has its own tests that run on a computer (see Build from source).
 
 ## Licence
 
