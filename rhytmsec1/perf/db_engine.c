@@ -27,6 +27,7 @@ enum { Q_TEMPO, Q_ROOT, Q_MODE, Q_SWING, Q_PULSE, Q_BASS, Q_DRIVE, Q_KIT_KICK, Q
        Q_BL_MOVE, Q_BL_GLIDE, Q_BASSOCT, Q_OCT, Q_DR_INST, Q_DR_CUT, Q_DR_RES, Q_DE_TRIG, Q_DE_ATK, Q_DE_DEC, Q_DE_AMT,
        Q_TUNE, Q_N };
 _Static_assert(Q_N == PC_N, "styles.h's columns");
+enum { Q_BDRV = Q_N, Q_ALL };                    /* the bass's drive (0 .. 100; 50: the sound as voiced): the player's, no column */
 
 static const char *const GENRE_NAME[EN_NGENRE] = {"HYPNO", "LOFI", "HOUSE", "DUBSTEP", "DUB", "DNB", "BREAKS", "GARAGE", "ELECTRO",
     "TRAP", "DISCO", "FUNK", "REGGAE", "SYNTHWV", "AMAPI", "TRIPHOP", "INDUS", "PSY", "FOREST"};
@@ -37,7 +38,7 @@ static const char *const BL_NAME[16] = {"Drone", "Root", "Kick", "Eighths", "Off
     "One-drop", "Log drum", "Skippy", "Funk", "Big beat", "Dub", "Gallop"};
 static const uint16_t MODE_POOL[8] = {0xAB5, 0x6AD, 0x5AB, 0xAD5, 0x6B5, 0x5AD, 0x295, 0x4A9};   /* amb.c's EN_MODE_POOL */
 
-static int16_t par[Q_N];                         /* the piece playing (the player's knobs over it) */
+static int16_t par[Q_ALL];                       /* the piece playing (the player's knobs over it) */
 static uint8_t mods[EN_NLANE][16];               /* its steps' tricks: ratchet (bits 0-2), push (3-5), level (6-7) */
 static int genre;
 static volatile uint32_t en_lane_mute;           /* bit l: drum lane l muted; bit 6: the bass */
@@ -143,7 +144,7 @@ static const drone_snd_t DRONE_SOUND[EN_NSOUND] = {
     {DO_SAWS, 0.4f, 0.55f, 1.0f, 0.0f, 1.0f},   {DO_SAWS, 0.3f, 0.75f, 0.8f, -0.4f, 1.0f},
     {DO_SAWS, 0.45f, 0.5f, 2.2f, -0.3f, 1.0f},  {DO_SAWS, 0.3f, 0.8f, 3.0f, -0.6f, 0.9f},
     {DO_REESE, 0.5f, 0.4f, 1.4f, 0.0f, 1.0f},   {DO_PULSE, 0.45f, 0.45f, 1.1f, 0.0f, 1.0f},
-    {DO_FM, 0.55f, 0.35f, 1.2f, 0.4f, 1.0f},    {DO_ORGAN, 0.45f, 0.5f, 1.0f, 0.6f, 0.9f},
+    {DO_FM, 0.55f, 0.35f, 1.2f, 0.0f, 1.0f},    {DO_ORGAN, 0.45f, 0.5f, 1.0f, 0.6f, 0.9f},
     {DO_SAWS, 0.12f, 1.0f, 2.6f, -1.0f, 0.95f}, {DO_SINE, 0.6f, 0.5f, 1.3f, 0.0f, 1.05f},
     {DO_SQUARE, 0.45f, 0.45f, 1.0f, 0.2f, 0.95f}, {DO_HOOVER, 0.4f, 0.5f, 1.6f, 0.5f, 0.85f},
     {DO_FIFTHS, 0.4f, 0.5f, 1.2f, 0.2f, 0.9f},  {DO_METAL, 0.5f, 0.45f, 1.3f, 0.5f, 0.95f},
@@ -537,6 +538,7 @@ static struct {
     float ph[3], sph, mph, note, target, amp;
     float s[4], c1[4], c2[4];
     float env;
+    float e_in, e_out;                           /* (the drive above 50: its mean squares in and out, for the trim) */
     uint8_t env_up;
 } bass;
 static float bl_env, bl_gate, bass_vol, reso_k = 1.0f, brk, bass_duck;
@@ -545,6 +547,9 @@ static int32_t bl_wait;
 static int bl_pn;
 static uint32_t dr_ctl;
 static const float GLIDE_K = 1.0f / (0.6f * EN_SR);
+/* the lowest root each style's bass takes, the root in the octave from there: 28 E1 where the bass is a sub under the
+ * kick, 33 A1 where it is a line to be heard, 24 C1 for trap's 808 (PERF-1's own: C2 up, an octave high for most keys) */
+static const uint8_t BL_LOW[EN_NGENRE] = {28, 33, 28, 28, 28, 28, 33, 28, 33, 24, 33, 33, 33, 33, 33, 33, 28, 28, 28};
 static const uint16_t BL_ROOT[EN_NGENRE] = {0x1111, 0x0421, 0x1111, 0x0401, 0x0501, 0x0441, 0x1121, 0x0449, 0x5555, 0x2401, 0x5555, 0x4529, 0x0149, 0x5555, 0x2449, 0x0401, 0x0405, 0xEEEE, 0xEEEE};
 typedef struct { uint16_t mask; int8_t iv[4]; } bl_fig_t;
 static const bl_fig_t BL_RIFF[EN_NGENRE] = {
@@ -566,7 +571,20 @@ static int bl_fit(int n)
         n -= 12;
     return n;
 }
-static int bass_root(void) { return bl_fit(36 + chord_pcs[0] % 12 + 12 * (par[Q_BASSOCT] + par[Q_OCT])); }
+static int bass_root(void)
+{
+    const int lo = BL_LOW[genre];
+    return bl_fit(lo + (chord_pcs[0] - lo % 12 + 12) % 12 + 12 * (par[Q_BASSOCT] + par[Q_OCT]));
+}
+/* the cutoff knob and the sound's offset, in octaves over the note's second harmonic (PERF-1's -1.5 left it fizzy) */
+static float cut_oct(const drone_snd_t *DS) { return (float)par[Q_DR_CUT] * 0.075f - 2.0f + DS->cut; }
+/* the screen's cutoff, as a synth's reads (PRO-FM-78's too): in Hz at rest on C2, key tracking's anchor; a note an octave up
+ * has it an octave up, and the envelope opens it from there */
+static float en_cut_hz(void)
+{
+    const drone_snd_t *DS = &DRONE_SOUND[(unsigned)par[Q_DR_INST] < EN_NSOUND ? par[Q_DR_INST] : 0];
+    return fm_clampf(mtof(36.0f) * 2.0f * fm_exp2f(cut_oct(DS)), 45.0f, 9000.0f);
+}
 static int bl_below(int root)
 {
     int d;
@@ -1142,18 +1160,39 @@ static int32_t waits_next(void)                  /* samples to the next thing th
     return m;
 }
 
+static float post_gain(float k)                  /* the drive after the filter's make-up: a sine of peak 1 keeps its rms */
+{
+    static float k_was = -1.0f, m = 1.0f;
+    float s = 0.0f;
+    int i;
+    if (k == k_was)
+        return m;
+    k_was = k;
+    if (k <= 0.0f)
+        return m = 1.0f;
+    for (i = 0; i < 32; i++) {
+        const float y = fm_tanhf(k * SINT[i * (SN / 32)]);
+        s += y * y;
+    }
+    return m = fm_sqrtf(16.0f / s);              /* (16: a sine's mean square, 0.5, over the 32) */
+}
 static void render_bass(uint32_t n)
 {
     uint32_t j;
     const drone_snd_t *DS = &DRONE_SOUND[(unsigned)par[Q_DR_INST] < EN_NSOUND ? par[Q_DR_INST] : 0];
-    const int osc = DS->osc;
-    const float drv = 1.4f * DS->drive, k1 = reso_k, k2 = 1.4f,
-                g = bass_vol * 0.36f * DS->g / fm_minf(1.0f + 0.15f * (DS->drive - 1.0f), 1.3f) * lane_on_g[6],
+    const int osc = DS->osc, dk = par[Q_BDRV];
+    /* the drive knob, 50 the sound as voiced: below, the sound's own drive (before the filter) eased off to clean at 0; above,
+     * a second drive after the filter, where its edge is heard; each makes up the level it takes */
+    const float drv0 = 1.4f * DS->drive, drv = dk < 50 ? drv0 * fm_maxf((float)dk * 0.02f, 0.05f) : drv0,
+                pk = dk > 50 ? 0.12f * (float)(dk - 50) : 0.0f, pg = post_gain(pk), k1 = reso_k, k2 = 1.4f,
+                trim = bass.e_out > 0.0f ? fm_clampf(fm_sqrtf(bass.e_in / bass.e_out), 0.6f, 1.6f) : 1.0f,
+                g = bass_vol * 0.36f * DS->g / fm_minf(1.0f + 0.15f * (DS->drive - 1.0f), 1.3f) * lane_on_g[6] *
+                    fm_tanhf(0.6f * drv0) / fm_tanhf(0.6f * drv),
                 dsaw = DS->saw, dsub = DS->sub, tgt = en_playing ? 1.0f : 0.0f,
                 rate = tgt > 0.0f ? 1.0f / (2.0f * EN_SR) : 1.0f / (0.5f * EN_SR),
-                fmi = 0.5f + 2.2f * bass.env, pw = 0.5f;
+                fmi = 0.4f + 1.2f * bass.env, pw = 0.5f;
     const int bl_on = par[Q_BL_MODE] != 0;
-    float p0 = bass.ph[0], p1 = bass.ph[1], p2 = bass.ph[2], sp = bass.sph, mp = bass.mph, amp = bass.amp, f, i0, i1, i2, mi;
+    float p0 = bass.ph[0], p1 = bass.ph[1], p2 = bass.ph[2], sp = bass.sph, mp = bass.mph, amp = bass.amp, f, i0, i1, i2, mi, si, ein = 0.0f, eout = 0.0f;
     if (amp < 1e-5f && !en_playing) {
         bass.amp = 0.0f;
         for (j = 0; j < n; j++)
@@ -1171,12 +1210,18 @@ static void render_bass(uint32_t n)
     f = mtof(bass.note);
     i0 = f * (osc == DO_FIFTHS ? 1.49831f : osc == DO_REESE || osc == DO_HOOVER ? 0.9862f : 0.99481f) * (1.0f / EN_SR);
     i1 = f * (1.0f / EN_SR);
+    si = f >= 82.4f ? 0.5f * i1 : i1;           /* the sub an octave down only to E1 (41 Hz): below, no speaker plays it */
+    if (si == i1) {                              /* (so it doubles the note, in step with its fundamental: a saw's is -sin, so half a turn on) */
+        sp = p1 + (osc == DO_FM || osc == DO_ORGAN || osc == DO_SINE || osc == DO_FMR || osc == DO_METAL ? 0.0f : 0.5f);
+        if (sp >= 1.0f)
+            sp -= 1.0f;
+    }
     i2 = f * (osc == DO_REESE || osc == DO_HOOVER ? 1.0140f : 1.00521f) * (1.0f / EN_SR);
     mi = osc == DO_METAL ? i1 * 1.4142f : osc == DO_FMR ? i1 * DRONE_FR[(unsigned)par[Q_DR_INST] < EN_NSOUND ? par[Q_DR_INST] : 0] : i1 * (1.5f + 2.5f * bass.env);
     for (j = 0; j < n; j++) {
         float x;
-        if (!(dr_ctl++ & 31u)) {
-            const float oct = (float)par[Q_DR_CUT] * 0.075f - 1.5f + DS->cut + 4.0f * (float)par[Q_DE_AMT] * 0.01f * bass.env -
+        if (!(dr_ctl++ & 31u)) {                 /* (the envelope's sweep half PERF-1's 4.0: less fizz) */
+            const float oct = cut_oct(DS) + 2.0f * (float)par[Q_DE_AMT] * 0.01f * bass.env -
                               2.0f * fm_maxf(brk, 0.0f) - 1.6f * fm_minf(brk, 0.0f) - 0.35f * bass_duck * pulse_vol;
             const float fc = fm_clampf(f * 2.0f * fm_exp2f(oct), 45.0f, 9000.0f);
             svf_coefs(bass.c1, fc, k1);
@@ -1207,7 +1252,7 @@ static void render_bass(uint32_t n)
                 q0 -= 1.0f;
             if (q2 >= 1.0f)
                 q2 -= 1.0f;
-            x = (blep_saw(p0, i0) - blep_saw(q0, i0) + blep_saw(p2, i2) - blep_saw(q2, i2)) * dsaw * 0.9f + 0.5f * dsaw * (2.0f * sp - 1.0f);
+            x = (blep_saw(p0, i0) - blep_saw(q0, i0) + blep_saw(p2, i2) - blep_saw(q2, i2)) * dsaw * 0.9f + 0.5f * dsaw * blep_saw(sp, si);
             break;
         }
         case DO_FIFTHS: x = (blep_saw(p1, i1) + 0.75f * blep_saw(p0, i0)) * dsaw * 1.1f; break;
@@ -1220,7 +1265,7 @@ static void render_bass(uint32_t n)
         p0 += i0;
         p1 += i1;
         p2 += i2;
-        sp += i1 * 0.5f;
+        sp += si;
         mp += mi;
         if (mp >= 1.0f)
             mp -= (float)(int)mp;
@@ -1234,8 +1279,6 @@ static void render_bass(uint32_t n)
             p2 -= 1.0f;
         if (sp >= 1.0f)
             sp -= 1.0f;
-        x = svf_lp(x, bass.c1, &bass.s[0]);
-        x = svf_lp(x, bass.c2, &bass.s[2]);
         amp += (tgt - amp) * rate;
         if (bl_on) {
             if (bl_up) {
@@ -1252,7 +1295,15 @@ static void render_bass(uint32_t n)
             }
             x *= bl_env;
         }
-        bass_o[j] = fm_tanhf(x * drv) * amp * g;
+        x = svf_lp(fm_tanhf(x * drv), bass.c1, &bass.s[0]);   /* the drive before the filter: the filter takes the fizz it adds */
+        x = svf_lp(x, bass.c2, &bass.s[2]);
+        if (pk > 0.0f) {
+            const float y = fm_tanhf(pk * x) * pg;
+            ein += x * x;
+            eout += y * y;
+            x = y * trim;
+        }
+        bass_o[j] = x * amp * g;
     }
     for (j = 0; j < 4; j++)
         bass.s[j] = fm_flush(bass.s[j]);
@@ -1262,6 +1313,11 @@ static void render_bass(uint32_t n)
     bass.sph = sp;
     bass.mph = mp;
     bass.amp = amp;
+    if (pk > 0.0f && ein > 1e-6f * (float)n) {   /* the trim: what the make-up's sine misses, over ~2 s, held through silence */
+        const float a = fm_minf((float)n / (2.0f * EN_SR), 1.0f);
+        bass.e_in += (ein / (float)n - bass.e_in) * a;
+        bass.e_out += (eout / (float)n - bass.e_out) * a;
+    }
 }
 
 /* the output: the DJ filter (-100 low-pass down to ~80 Hz .. 0 off .. 100 high-pass up to ~8 kHz, a little resonant) and the split
@@ -1434,6 +1490,8 @@ static void en_style(int g)
     genre = (unsigned)g < EN_NGENRE ? g : 0;
     for (k = 0; k < Q_N; k++)
         par[k] = STYLE_PAR[genre][k];
+    par[Q_BASSOCT] = 0;                          /* (the style's register is BL_LOW's; the octave is the player's) */
+    par[Q_BDRV] = 50;
     for (l = 0; l < EN_NLANE; l++)
         for (s = 0; s < 16; s++)
             mods[l][s] = STYLE_MOD[genre][l][s];

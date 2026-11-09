@@ -6,7 +6,7 @@
  *   SELECT          style (genre)    PRESETS  root note (both at once; a new style: its own density, complexity back to 45)
  *   ALGORITHM       the DJ filter: left a low-pass, right a high-pass, the middle off
  *   SEL             the knobs' page: DRUMS (tempo, swing, density, complexity), GEN (evolve, every, fills, ghosts),
- *                   BASS (line, cutoff, reso, sound), SOUND (one drum's level, tune, decay, kit)
+ *                   BASS (line, cutoff, drive, sound), SOUND (one drum's level, tune, decay, kit)
  *   SEL + SELECT    the tempo        SEL + PRESETS     the scale
  *   SEL + ALGORITHM the output: stereo, or split (drums left, bass right)
  *                   (a host built with USB stems, --uac-stems 4, also records bass, kick, snare + clap, hats + perc,
@@ -43,10 +43,10 @@ static const hb_host_t *H;
 #define C_EMPTY HB_RGB(30, 30, 30)
 
 /* the player's settings over the style's; bit k of set: field k below is the player's (else the style's) */
-enum { U_TEMPO, U_SWING, U_DENS, U_GHOST, U_LINE, U_CUT, U_RES, U_SOUND, U_BOCT,
+enum { U_TEMPO, U_SWING, U_DENS, U_GHOST, U_LINE, U_CUT, U_DRIVE, U_SOUND, U_BOCT,   /* (U_DRIVE: once the resonance's) */
        U_LANE, U_KIT = U_LANE + 18, U_N = U_KIT + 4 };   /* U_LANE + 3 * lane + 0 level, 1 tune, 2 decay; U_KIT + kick, snare, hats, perc */
 #define LQ(l) Q_LANE + 3 * (l), Q_LANE + 3 * (l) + 1, Q_LANE + 3 * (l) + 2
-static const uint8_t U_Q[U_N] = {Q_TEMPO, Q_SWING, Q_DENS, Q_GHOST, Q_BL_MODE, Q_DR_CUT, Q_DR_RES, Q_DR_INST, Q_BASSOCT,
+static const uint8_t U_Q[U_N] = {Q_TEMPO, Q_SWING, Q_DENS, Q_GHOST, Q_BL_MODE, Q_DR_CUT, Q_BDRV, Q_DR_INST, Q_BASSOCT,
                                  LQ(0), LQ(1), LQ(2), LQ(3), LQ(4), LQ(5), Q_KIT_KICK, Q_KIT_SNARE, Q_KIT_HAT, Q_KIT_PERC};
 _Static_assert(U_N <= 32, "set's bits");
 static const uint8_t LANE_KIT[EN_NLANE] = {0, 1, 1, 2, 2, 3};   /* (the clap plays the snare's kit, the open hat the hats') */
@@ -140,6 +140,18 @@ static char *num(char *d, int v)
     *d = 0;
     return d;
 }
+static char *hz(char *d, float f)                /* PRO-FM-78's way: whole Hz to 999, then kHz to three figures (262 Hz, 1.25kHz) */
+{
+    int c;
+    if (f < 999.5f)
+        return cat(num(d, (int)(f + 0.5f)), " Hz");
+    c = (int)(f * 0.1f + 0.5f);                  /* (tens of Hz: hundredths of a kHz; the cutoff stops at 9 kHz) */
+    d = num(d, c / 100);
+    *d++ = '.';
+    *d++ = (char)('0' + c / 10 % 10);
+    *d++ = (char)('0' + c % 10);
+    return cat(d, "kHz");
+}
 static struct {
     int genre;
     char info[48];
@@ -220,7 +232,7 @@ static void draw_grid(int full)
 static void draw_knobs(int full)
 {
     static const char *const NAME[4][4] = {{"TEMPO", "SWING", "DENS", "CMPLX"}, {"EVOLVE", "EVERY", "FILLS", "GHOST"},
-                                           {"LINE", "CUTOFF", "RESO", "SOUND"}, {"LEVEL", "TUNE", "DECAY", "KIT"}};
+                                           {"LINE", "CUTOFF", "DRIVE", "SOUND"}, {"LEVEL", "TUNE", "DECAY", "KIT"}};
     static const char *const PAGE[3] = {"DRUMS", "GEN", "BASS"};
     static const uint16_t PC[4] = {C_ACC, C_GEN, C_BASS, C_ACC};
     char v[4][12], title[12], flags[40], cand[5][8];
@@ -245,8 +257,8 @@ static void draw_knobs(int full)
         num(v[3], par[Q_GHOST]);
     } else if (pg == 2) {
         cat(v[0], BL_NAME[(unsigned)par[Q_BL_MODE] < 16u ? par[Q_BL_MODE] : 0]);
-        num(v[1], par[Q_DR_CUT]);
-        num(v[2], par[Q_DR_RES]);
+        hz(v[1], en_cut_hz());
+        num(v[2], par[Q_BDRV]);
         cat(v[3], DRONE_NAME[(unsigned)par[Q_DR_INST] < EN_NSOUND ? par[Q_DR_INST] : 0]);
     } else {
         char *p = v[1];
@@ -335,7 +347,7 @@ static void knob(int k, int32_t d)
     case 7: user_set(U_GHOST, clampi(par[Q_GHOST] + d * 2, 0, 100)); break;
     case 8: user_set(U_LINE, clampi(par[Q_BL_MODE] + step1(d), 0, 15)); break;
     case 9: user_set(U_CUT, clampi(par[Q_DR_CUT] + d * 2, 0, 100)); break;
-    case 10: user_set(U_RES, clampi(par[Q_DR_RES] + d * 2, 0, 100)); break;
+    case 10: user_set(U_DRIVE, clampi(par[Q_BDRV] + d * 2, 0, 100)); break;
     case 11: user_set(U_SOUND, clampi(par[Q_DR_INST] + step1(d), 0, EN_NSOUND - 1)); break;
     case 12: user_set(U_LANE + 3 * sl, clampi(par[Q_LANE + 3 * sl] + d * 2, 0, 100)); break;
     case 13: user_set(U_LANE + 3 * sl + 1, clampi(par[Q_LANE + 3 * sl + 1] + step1(d), -24, 24)); break;   /* semitones */

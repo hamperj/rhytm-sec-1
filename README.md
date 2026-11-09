@@ -93,7 +93,7 @@ A quick overview. For the full detail, including every style, scale, bass line, 
 |---|---|---|---|---|
 | DRUMS | Tempo | Swing | Density | Complexity |
 | GEN | Evolve | Every (1–16 bars) | Fills | Ghost notes |
-| BASS | Line | Cutoff | Resonance | Sound |
+| BASS | Line | Cutoff (Hz) | Drive (0 clean, 50 as designed, 100 distorted) | Sound |
 | SOUND | Level | Tune (±24 semitones) | Decay | Kit |
 
 On the SOUND page, press keys C4–F4 to pick which drum to edit.
@@ -114,7 +114,7 @@ Settings and the current pattern are saved after it has been stopped and left al
 | ![Stopped](docs/screens/01-stopped.png) | ![Playing](docs/screens/02-house-playing.png) |
 | Stopped: style, key, tempo, the pattern and the drum knobs | Playing: steps that play light up, the white column is the current step |
 | ![Generator page](docs/screens/03-page-2.png) | ![Bass page](docs/screens/04-page-3.png) |
-| Tap SEL for the generator page: evolve, how often, fills, ghosts | The bass page: line, cutoff, resonance, sound |
+| Tap SEL for the generator page: evolve, how often, fills, ghosts | The bass page: line, cutoff, drive, sound |
 | ![Sound page](docs/screens/05-sound-page.png) | ![New style](docs/screens/06-style-changed.png) |
 | The sound page: press a drum's key to pick it (here the snare) | A new style changes at once |
 | ![Break](docs/screens/07-break.png) | ![Filter](docs/screens/08-filter-fill.png) |

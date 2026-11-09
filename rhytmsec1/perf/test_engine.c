@@ -286,6 +286,43 @@ int main(int argc, char **argv)
         }
         en_play(0);
     }
+    {   /* the bass's register: every style's root in its octave from BL_LOW, in every key; the drive knob holds the level */
+        int bad = 0, k;
+        double rms[3];
+        for (g = 0; g < EN_NGENRE; g++)
+            for (k = 0; k < 12; k++) {
+                int r;
+                en_style(g);
+                en_key(k, 5);
+                r = bass_root();
+                bad += r < BL_LOW[g] || r > BL_LOW[g] + 11 || r % 12 != k;
+                bad += g == 2 && fabsf(en_cut_hz() - 261.6f) > 0.5f;   /* (house's cutoff 40, Pulse: 262 Hz in every key) */
+            }
+        for (k = 0; k < 3; k++) {
+            int32_t blk[512];
+            double s = 0.0;
+            uint32_t b, j;
+            en_play(0);
+            en_style(2);
+            en_key(9, 5);
+            par[Q_BDRV] = (int16_t)(k * 50);
+            en_lane_mute = 0x3Fu;
+            en_play(1);
+            for (b = 0; b < 400u; b++) {
+                memset(blk, 0, sizeof blk);
+                en_render(blk, 256u);
+                for (j = 0; b >= 40u && j < 256u; j++)
+                    s += (double)blk[2u * j] * blk[2u * j];
+            }
+            rms[k] = sqrt(s / (360.0 * 256.0));
+        }
+        en_play(0);
+        en_lane_mute = 0;
+        k = !bad && fabs(20.0 * log10(rms[0] / rms[1])) < 3.0 && fabs(20.0 * log10(rms[2] / rms[1])) < 3.0;
+        printf("bass: %d roots out of their octave, rms at drive 0 / 50 / 100 %.0f %.0f %.0f  %s\n", bad, rms[0], rms[1], rms[2],
+               k ? "ok" : "FAIL");
+        fails += !k;
+    }
     printf(fails ? "%d FAILED\n" : "all genres ok\n", fails);
     return fails != 0;
 }
