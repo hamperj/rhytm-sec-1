@@ -11,7 +11,7 @@ git submodule update --init fm1-dock
 cd fm1-dock
 git apply --reverse --check ../patches/fm1-dock-host.patch 2>/dev/null || git apply ../patches/fm1-dock-host.patch
 rm -rf modules/rhytmsec1 && cp -R ../rhytmsec1 modules/rhytmsec1
-./build.sh --release "$VERSION" --modules rhytmsec1 --name rhytm-sec-1 --app-name RHYTM-SEC-1 --identity FM-1_947 \
+./build.sh --release "$VERSION" --modules rhytmsec1 --name rhytm-sec-1 --app-name RHYTM-SEC-1 --identity FM-1_924 \
     --uac-stems 4 --uac-full
 mkdir -p ../build
 cp "build/rhytm-sec-1-$VERSION.fwsc" build/modules/rhytmsec1.dock ../build/

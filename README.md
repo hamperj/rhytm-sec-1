@@ -2,7 +2,7 @@
 
 Standalone firmware for the M-VAVE FM-1 that turns it into a generative drum machine and bass synth.
 
-It uses the drums and bass from deamonSLINKY's [PERF-1](https://github.com/deamonSLINKY/PERF-1). Patterns are drawn from each genre's hit probabilities instead of fixed presets, so they keep evolving while you play. It's built for working up ideas rather than full songs.
+It uses the drums and bass from deamonSLINKY's [PERF-1](https://github.com/deamonSLINKY/PERF-1). The bass runs through a Minimoog-style ladder filter from Guilherme Ruppert's [FMini-1](https://github.com/ruppert/fmini-1). Patterns are drawn from each genre's hit probabilities instead of fixed presets, so they keep evolving while you play. It's built for working up ideas rather than full songs.
 
 <p>
 <img src="docs/screens/02-house-playing.png" width="240" alt="House playing: the step grid, with the HOME page">
@@ -36,7 +36,7 @@ Every [release](../../releases/latest) has two files. Pick one:
 
 The FM-1 starts straight into RHYTM-SEC-1. To go back to another firmware, flash that firmware the same way.
 
-The firmware identifies itself as `FM-1_947` to installers.
+The firmware identifies itself as `FM-1_924` to installers.
 
 **Under the hood:** the firmware is built on [fm1-dock](https://github.com/joakimeriksson/fm1-dock)'s platform as a single-app build, with RHYTM-SEC-1 built in. You don't need fm1-dock or its web page to use it. Two fm1-dock features are still there:
 - Holding **HOME** for 1.5 s opens a small menu with the master EQ and MIDI options. There's also a test sine. Pick RHYTM-SEC-1 there to go back.

@@ -87,13 +87,6 @@ static void svf_coefs(float *c, float f, float k)
     c[2] = g * c[1];
     c[3] = k;
 }
-static inline float svf_lp(float x, const float *c, float *s)
-{
-    float v3 = x - s[1], v1 = c[0] * s[0] + c[1] * v3, v2 = s[1] + c[1] * s[0] + c[2] * v3;
-    s[0] = 2.0f * v1 - s[0];
-    s[1] = 2.0f * v2 - s[1];
-    return v2;
-}
 
 /* ---- the kits (amb.c's KITS) */
 typedef struct {
@@ -103,37 +96,51 @@ typedef struct {
     float h_metal, h_noise, h_dec, oh_dec;
     float p_freq, p_ratio, p_idx;
     float duck, chop, crush;
+    uint8_t km, sm, hm, pm;                      /* the kick's, the snare's, the hats' and the perc's model (KICK_ / SNARE_ / HAT_ / PERC_MODEL) */
 } kit_t;
 static const kit_t KITS[EN_NKIT] = {
     {5.0f, 0.0016f, 0.15f, 0.75f, 0.25f, 1.0f, 0.0f, 185.0f, 330.0f, 1.1f, 0.7f, 1.0f, 353.0f, 1.0f,
-     1.0f, 0.6f, 1.0f, 1.0f, 380.0f, 1.48f, 1.4f, 1.0f, 0.0f, 0.0f},
+     1.0f, 0.6f, 1.0f, 1.0f, 380.0f, 1.48f, 1.4f, 1.0f, 0.0f, 0.0f, 0, 0, 1, 0},
     {3.2f, 0.0011f, 0.2f, 0.8f, 0.12f, 0.6f, 0.0f, 210.0f, 360.0f, 1.3f, 0.5f, 0.9f, 440.0f, 1.4f,
-     1.25f, 0.9f, 1.1f, 1.4f, 300.0f, 1.0f, 0.6f, 1.25f, 0.0f, 0.0f},
+     1.25f, 0.9f, 1.1f, 1.4f, 300.0f, 1.0f, 0.6f, 1.25f, 0.0f, 0.0f, 0, 0, 2, 4},
     {7.0f, 0.0024f, 0.12f, 0.5f, 0.4f, 1.6f, 0.6f, 170.0f, 290.0f, 1.4f, 0.4f, 0.7f, 260.0f, 0.7f,
-     1.55f, 0.35f, 0.7f, 1.3f, 560.0f, 3.5f, 2.2f, 1.1f, 0.0f, 0.0f},
+     1.55f, 0.35f, 0.7f, 1.3f, 560.0f, 3.5f, 2.2f, 1.1f, 0.0f, 0.0f, 0, 2, 0, 0},
     {4.0f, 0.0014f, 0.13f, 0.6f, 0.35f, 1.25f, 0.0f, 180.0f, 330.0f, 1.5f, 0.6f, 1.2f, 440.0f, 1.1f,
-     1.0f, 0.6f, 0.9f, 1.6f, 560.0f, 1.48f, 2.0f, 1.0f, 0.0f, 0.0f},
+     1.0f, 0.6f, 0.9f, 1.6f, 560.0f, 1.48f, 2.0f, 1.0f, 0.0f, 0.0f, 0, 3, 0, 3},
     {6.0f, 0.0022f, 0.1f, 0.45f, 0.45f, 2.5f, 0.2f, 240.0f, 420.0f, 1.6f, 0.8f, 0.6f, 300.0f, 0.8f,
-     1.3f, 1.0f, 0.6f, 0.8f, 200.0f, 1.0f, 0.9f, 0.8f, 1.0f, 0.6f},
+     1.3f, 1.0f, 0.6f, 0.8f, 200.0f, 1.0f, 0.9f, 0.8f, 1.0f, 0.6f, 3, 1, 2, 1},
     {4.0f, 0.0018f, 0.08f, 0.35f, 0.5f, 1.0f, 0.0f, 400.0f, 820.0f, 0.5f, 1.0f, 0.5f, 300.0f, 0.6f,
-     1.4f, 0.3f, 0.5f, 0.7f, 720.0f, 2.0f, 0.8f, 0.9f, 0.0f, 0.0f},
+     1.4f, 0.3f, 0.5f, 0.7f, 720.0f, 2.0f, 0.8f, 0.9f, 0.0f, 0.0f, 1, 0, 1, 2},
     {8.0f, 0.0028f, 0.14f, 0.6f, 0.6f, 3.2f, 0.9f, 200.0f, 340.0f, 1.8f, 0.5f, 0.8f, 220.0f, 0.8f,
-     1.7f, 0.8f, 0.8f, 1.2f, 140.0f, 2.76f, 2.8f, 1.3f, 0.0f, 0.25f},
+     1.7f, 0.8f, 0.8f, 1.2f, 140.0f, 2.76f, 2.8f, 1.3f, 0.0f, 0.25f, 2, 2, 0, 0},
     {2.2f, 0.0007f, 0.3f, 1.6f, 0.08f, 0.5f, 0.0f, 238.0f, 476.0f, 1.0f, 0.9f, 1.1f, 380.0f, 1.6f,
-     1.15f, 0.5f, 0.8f, 1.8f, 540.0f, 1.48f, 1.2f, 1.0f, 0.0f, 0.0f},
+     1.15f, 0.5f, 0.8f, 1.8f, 540.0f, 1.48f, 1.2f, 1.0f, 0.0f, 0.0f, 1, 0, 0, 3},
     {2.8f, 0.0010f, 0.2f, 0.95f, 0.08f, 0.45f, 0.0f, 172.0f, 290.0f, 0.9f, 0.85f, 0.95f, 380.0f, 0.8f,
-     0.85f, 0.55f, 0.85f, 1.1f, 520.0f, 1.5f, 0.9f, 0.35f, 0.0f, 0.0f},
+     0.85f, 0.55f, 0.85f, 1.1f, 520.0f, 1.5f, 0.9f, 0.35f, 0.0f, 0.0f, 3, 1, 2, 2},
     {3.0f, 0.0013f, 0.28f, 1.35f, 0.25f, 1.1f, 0.35f, 190.0f, 330.0f, 1.5f, 0.75f, 1.05f, 330.0f, 1.1f,
-     1.2f, 0.5f, 0.7f, 1.0f, 300.0f, 2.2f, 1.6f, 1.0f, 0.0f, 0.0f},
+     1.2f, 0.5f, 0.7f, 1.0f, 300.0f, 2.2f, 1.6f, 1.0f, 0.0f, 0.0f, 2, 0, 2, 1},
     {5.0f, 0.0015f, 0.16f, 0.7f, 0.3f, 1.1f, 0.0f, 188.0f, 332.0f, 1.25f, 0.75f, 0.85f, 410.0f, 0.95f,
-     1.3f, 0.7f, 0.7f, 1.2f, 150.0f, 1.0f, 0.5f, 1.1f, 0.0f, 0.0f},
+     1.3f, 0.7f, 0.7f, 1.2f, 150.0f, 1.0f, 0.5f, 1.1f, 0.0f, 0.0f, 0, 0, 2, 1},
     {6.0f, 0.0020f, 0.09f, 0.4f, 0.5f, 1.3f, 0.0f, 220.0f, 400.0f, 1.5f, 0.5f, 0.6f, 300.0f, 0.4f,
-     1.6f, 0.5f, 0.5f, 1.0f, 160.0f, 1.0f, 1.2f, 1.0f, 0.0f, 0.0f},
+     1.6f, 0.5f, 0.5f, 1.0f, 160.0f, 1.0f, 1.2f, 1.0f, 0.0f, 0.0f, 1, 2, 0, 0},
     {5.5f, 0.0018f, 0.1f, 0.4f, 0.35f, 1.0f, 0.0f, 240.0f, 460.0f, 1.3f, 0.7f, 0.55f, 380.0f, 0.5f,
-     1.5f, 0.5f, 0.45f, 0.8f, 320.0f, 1.5f, 0.8f, 1.0f, 0.0f, 0.0f},
+     1.5f, 0.5f, 0.45f, 0.8f, 320.0f, 1.5f, 0.8f, 1.0f, 0.0f, 0.0f, 0, 1, 2, 4},
     {2.0f, 0.0006f, 0.35f, 2.0f, 0.05f, 0.6f, 0.0f, 200.0f, 390.0f, 1.2f, 0.6f, 0.9f, 460.0f, 1.0f,
-     1.7f, 0.4f, 0.4f, 0.9f, 460.0f, 1.48f, 1.0f, 1.1f, 0.0f, 0.0f},
+     1.7f, 0.4f, 0.4f, 0.9f, 460.0f, 1.48f, 1.0f, 1.1f, 0.0f, 0.0f, 1, 3, 0, 2},
 };
+/* the models: what a kit's numbers play through
+ *   kick   0 punch (a sine, its octave, held, driven)   1 boom (the sine alone: clean)
+ *          2 fold (the sine folded over instead of clipped: bright while loud)   3 skin (a second, short mode: a drum's tok)
+ *   snare  0 classic (two sines and noise)   1 wires (the noise shaken by the body)   2 fm (a metallic body)   3 noise (mostly its top)
+ *   hats   0 squares (four, as a 808's)   1 fm (two sines, glassy)   2 noise (through the filter's band: soft)
+ *   perc   0 fm (a blip that falls)   1 tom (a sine that falls slowly)   2 rim (two high sines, short)
+ *          3 bell (two squared-off sines: a cowbell)   4 shaker (noise that swells in) */
+static const struct { float hold, h2, mode; uint8_t fold; } KICK_MODEL[4] = {{0.12f, 0.22f, 0.0f, 0}, {0.12f, 0.0f, 0.0f, 0}, {0.32f, 0.1f, 0.0f, 1}, {0.12f, 0.15f, 0.5f, 0}};
+static const struct { float fm, wires, body, siz; } SNARE_MODEL[4] = {{0.0f, 0.0f, 1.0f, 0.3f}, {0.0f, 0.9f, 1.0f, 0.45f}, {0.35f, 0.0f, 1.0f, 0.3f}, {0.0f, 0.0f, 0.3f, 0.9f}};
+static const struct { float sq, fm, hpg, bpg, nz; } HAT_MODEL[4] = {{1.0f, 0.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 0.33f, 1.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.35f, 0.63f, 1.6f}, {1.0f, 0.0f, 1.0f, 0.0f, 1.0f}};
+enum { PM_FM, PM_TOM, PM_RIM, PM_BELL, PM_SHAKER };
+static const struct { float mul, start, sweep, dec, att; } PERC_MODEL[5] = {   /* pitch x, its start x, how fast it falls, decay x, attack */
+    {1.0f, 2.0f, 0.004f, 1.0f, 0.3f}, {1.0f, 1.5f, 0.0012f, 1.4f, 0.3f}, {2.5f, 1.0f, 0.0f, 0.3f, 0.6f}, {1.0f, 1.0f, 0.0f, 1.2f, 0.3f}, {1.0f, 1.0f, 0.0f, 0.5f, 0.006f}};
 static const kit_t *KK = &KITS[0], *KS = &KITS[0], *KH = &KITS[0], *KP = &KITS[0];
 
 /* ---- the bass's sounds (amb.c's DRONE_SOUND) */
@@ -194,23 +201,34 @@ static void render_hat(drum_t *v, uint32_t n, float g, float pl, float pr, float
     uint32_t j;
     int k;
     float x1, x2, amp, att, fo, x = 0.0f;
+    const float sq = HAT_MODEL[KH->hm & 3].sq, fmg = HAT_MODEL[KH->hm & 3].fm, hpg = HAT_MODEL[KH->hm & 3].hpg * g, bpg = HAT_MODEL[KH->hm & 3].bpg * g,
+                nzg = HAT_MODEL[KH->hm & 3].nz * KH->h_noise * (1.0f / 2147483648.0f);
     if (!v->on)
         return;
     x1 = v->x1, x2 = v->x2, amp = v->amp, att = v->att, fo = v->fo;
     for (j = 0; j < n; j++) {
         float in = 0.0f, hp;
-        for (k = 0; k < 4; k++) {
-            v->mph[k] += hat_inc[k];
-            if (v->mph[k] >= 1.0f)
-                v->mph[k] -= 1.0f;
-            in += v->mph[k] < 0.5f ? 0.25f : -0.25f;
+        if (sq > 0.0f)
+            for (k = 0; k < 4; k++) {
+                v->mph[k] += hat_inc[k];
+                if (v->mph[k] >= 1.0f)
+                    v->mph[k] -= 1.0f;
+                in += 0.125f * (blep_saw(v->mph[k] < 0.5f ? v->mph[k] + 0.5f : v->mph[k] - 0.5f, hat_inc[k]) - blep_saw(v->mph[k], hat_inc[k]));   /* (a square: two saws) */
+            }
+        if (fmg > 0.0f) {                        /* two sines well apart, one bending the other: no harmonic series */
+            for (k = 0; k < 2; k++) {
+                v->mph[k] += 8.0f * hat_inc[k + 1];
+                if (v->mph[k] >= 1.0f)
+                    v->mph[k] -= 1.0f;
+            }
+            in = fmg * sine(v->mph[0] + 0.45f * sine(v->mph[1]) + 4.0f);
         }
         noise = noise * 1664525u + 1013904223u;
-        in = 0.5f * in + KH->h_noise * (float)(int32_t)noise * (1.0f / 2147483648.0f);
+        in += nzg * (float)(int32_t)noise;
         hp = in - x2 - 0.8f * x1;
         x1 += v->hp * hp;
         x2 += v->hp * x1;
-        x = hp * amp * att * g + fo;
+        x = (hp * hpg + x1 * bpg) * amp * att + fo;
         fo *= DR_FADE;
         mixl[j] += x * pl;
         mixr[j] += x * pr;
@@ -231,8 +249,8 @@ static void render_hat(drum_t *v, uint32_t n, float g, float pl, float pr, float
 static void render_clap(drum_t *v, uint32_t n, float g, float *so)
 {
     uint32_t j;
-    float s1 = v->x1, s2 = v->x2, amp = v->amp, t = v->t, ph = v->ph, fo = v->fo, x = 0.0f;
-    const float gap = KS->cl_gap;
+    float s1 = v->x1, s2 = v->x2, amp = v->amp, t = v->t, ph = v->ph, fo = v->fo, tail = v->mph[0], x = 0.0f;
+    const float gap = KS->cl_gap, tdec = v->mph[1];
     if (!v->on)
         return;
     for (j = 0; j < n; j++) {
@@ -244,7 +262,9 @@ static void render_clap(drum_t *v, uint32_t n, float g, float *so)
         bp = in - s2 - 0.7f * s1;
         s1 += v->hp * bp;
         s2 += v->hp * s1;
-        x = (s1 * 1.6f + 0.35f * sine(ph) * fm_maxf(1.0f - t * (1.0f / 2500.0f), 0.0f)) * amp * g + fo;
+        x = (s1 * 1.6f + 0.25f * bp) * (amp + tail) + 0.35f * sine(ph) * fm_maxf(1.0f - t * (1.0f / 2500.0f), 0.0f) * amp;   /* (bp: the high-pass, the air) */
+        x = fm_tanhf(x * 0.8f) * 1.4f * g + fo;
+        tail *= tdec;
         fo *= DR_FADE;
         ph += v->inc;
         if (ph >= 1.0f)
@@ -261,30 +281,37 @@ static void render_clap(drum_t *v, uint32_t n, float g, float *so)
     v->amp = amp;
     v->t = t;
     v->ph = ph;
+    v->mph[0] = tail;
     v->fo = fm_flush(fo);
     v->xl = x;
-    v->on = t < 2.0f * gap || amp > 0.0005f;
+    v->on = t < 2.0f * gap || amp > 0.0005f || tail > 0.0005f;
 }
 
 static void render_snare(drum_t *v, uint32_t n, float g, float *so)
 {
     uint32_t j;
-    float s1 = v->x1, s2 = v->x2, amp = v->amp, ph = v->ph, ph2 = v->ph2, att = v->att, body = v->idx, fo = v->fo, x = 0.0f;
+    float s1 = v->x1, s2 = v->x2, amp = v->amp, ph = v->ph, ph2 = v->ph2, att = v->att, body = v->idx, bend = v->mph[0], tail = v->mph[1], fo = v->fo, x = 0.0f;
     if (!v->on)
         return;
+    const float fmi = SNARE_MODEL[KS->sm & 3].fm, wi = SNARE_MODEL[KS->sm & 3].wires, siz = SNARE_MODEL[KS->sm & 3].siz,
+                bk = SNARE_MODEL[KS->sm & 3].body * KS->sn_body;
     if (v->t == 0.0f)
         body = 1.0f;
     for (j = 0; j < n; j++) {
-        float in, bp;
+        float in, bp, tone;
         noise = noise * 1664525u + 1013904223u;
         in = (float)(int32_t)noise * (1.0f / 2147483648.0f);
         bp = in - s2 - 0.5f * s1;
         s1 += v->hp * bp;
         s2 += v->hp * s1;
-        x = ((sine(ph) + 0.6f * sine(ph2)) * body * KS->sn_body + s1 * KS->sn_noise) * amp * att * g + fo;
+        tone = (fmi > 0.0f ? 1.4f * sine(ph + fmi * body * sine(ph2) + 4.0f) : sine(ph) + 0.6f * sine(ph2)) * body * bk;
+        x = tone * amp * att + (s1 + siz * bp) * (1.0f + wi * tone) * KS->sn_noise * (amp * att + tail);   /* (bp: the filter's high-pass, the sizzle) */
+        tail *= v->mph[2];
+        x = fm_tanhf(x * 0.8f) * 1.5f * g + fo;
         fo *= DR_FADE;
-        ph += v->inc;
-        ph2 += v->inc2;
+        ph += v->inc * bend;
+        ph2 += v->inc2 * bend;
+        bend += (1.0f - bend) * 0.003f;
         if (ph >= 1.0f)
             ph -= 1.0f;
         if (ph2 >= 1.0f)
@@ -294,7 +321,7 @@ static void render_snare(drum_t *v, uint32_t n, float g, float *so)
         if (so)
             so[j] = x;
         amp *= v->adec;
-        body *= 0.9992f;
+        body *= 0.9994f;
         att += (1.0f - att) * 0.4f;
     }
     v->x1 = fm_flush(s1);
@@ -304,21 +331,39 @@ static void render_snare(drum_t *v, uint32_t n, float g, float *so)
     v->ph2 = ph2;
     v->att = att;
     v->idx = body;
+    v->mph[0] = bend;
+    v->mph[1] = tail;
     v->t = 1.0f;
     v->fo = fm_flush(fo);
     v->xl = x;
-    v->on = amp > 0.0005f;
+    v->on = amp > 0.0005f || tail > 0.0005f;
 }
 
 static void render_perc(drum_t *v, uint32_t n, float g, float *so)
 {
     uint32_t j;
-    float ph = v->ph, ph2 = v->ph2, inc = v->inc, amp = v->amp, idx = v->idx, att = v->att, fo = v->fo, x = 0.0f;
+    float ph = v->ph, ph2 = v->ph2, inc = v->inc, amp = v->amp, idx = v->idx, att = v->att, fo = v->fo, x1 = v->x1, x2 = v->x2, x = 0.0f;
+    const int pm = KP->pm;
+    const float sweep = PERC_MODEL[pm].sweep, atk = PERC_MODEL[pm].att;
     if (!v->on)
         return;
     for (j = 0; j < n; j++) {
-        float m = sine(ph2) * idx;
-        x = sine(ph + m + 4.0f) * amp * att * g + fo;
+        switch (pm) {
+        case PM_TOM: x = 0.9f * sine(ph) + 0.2f * sine(2.0f * ph); break;
+        case PM_RIM: x = 0.6f * (sine(ph) + sine(ph2)); break;
+        case PM_BELL: x = 0.45f * (fm_tanhf(4.0f * sine(ph)) + fm_tanhf(4.0f * sine(ph2))); break;
+        case PM_SHAKER: {
+            float hp;
+            noise = noise * 1664525u + 1013904223u;
+            hp = (float)(int32_t)noise * (1.0f / 2147483648.0f) - x2 - 0.8f * x1;
+            x1 += v->hp * hp;
+            x2 += v->hp * x1;
+            x = 0.5f * (hp + x1);
+            break;
+        }
+        default: x = sine(ph + sine(ph2) * idx + 4.0f); break;
+        }
+        x = x * amp * att * g + fo;
         fo *= DR_FADE;
         ph += inc;
         ph2 += inc * v->inc2;
@@ -326,14 +371,14 @@ static void render_perc(drum_t *v, uint32_t n, float g, float *so)
             ph -= 1.0f;
         if (ph2 >= 1.0f)
             ph2 -= 1.0f;
-        inc += (v->inc_end - inc) * 0.004f;
+        inc += (v->inc_end - inc) * sweep;
         mixl[j] += x * 0.8f;
         mixr[j] += x;
         if (so)
             so[j] = x;
         amp *= v->adec;
         idx *= 0.9995f;
-        att += (1.0f - att) * 0.3f;
+        att += (1.0f - att) * atk;
     }
     v->ph = ph;
     v->ph2 = ph2;
@@ -341,6 +386,8 @@ static void render_perc(drum_t *v, uint32_t n, float g, float *so)
     v->amp = amp;
     v->idx = idx;
     v->att = att;
+    v->x1 = fm_flush(x1);
+    v->x2 = fm_flush(x2);
     v->fo = fm_flush(fo);
     v->xl = x;
     v->on = amp > 0.0005f;
@@ -360,14 +407,16 @@ static void render_drums(uint32_t n)
     }
     if (v->on) {
         float ph = v->ph, inc = v->inc, amp = v->amp, att = v->att, ck = v->idx, gk = g * lane_g[L_KICK] * 1.15f * lane_on_g[L_KICK], fo = v->fo, x = 0.0f;
-        float r1 = v->x1, r2 = v->x2, rl1 = v->mph[0], rl2 = v->mph[1], rp = v->ph2;
+        float r1 = v->x1, r2 = v->x2, rl1 = v->mph[0], rl2 = v->mph[1], rp = v->ph2, hold = v->t;
         const float dk = drive_k * KK->k_drive, drop = KK->k_drop, cka = KK->k_click, rum = KK->k_rumble;
-        const float norm = 0.85f / fm_minf(1.0f + 0.25f * (dk - 1.0f), 1.6f);
+        const float norm = 0.85f / fm_minf(1.0f + 0.25f * (dk - 1.0f), 1.6f), h2 = KICK_MODEL[KK->km & 3].h2;
+        const float fold = KICK_MODEL[KK->km & 3].fold ? 0.25f * fm_minf(1.0f + 0.156f * dk, 1.68f) : 0.0f;   /* (turns of the sine at full level; more and the fundamental goes) */
+        float mp = v->mph[2], ma = v->mph[3];
         for (j = 0; j < n; j++) {
             float nz;
             noise = noise * 1664525u + 1013904223u;
             nz = (float)(int32_t)noise * (1.0f / 2147483648.0f);
-            x = sine(ph) * amp * att + ck * cka * nz;
+            x = (sine(ph) + h2 * sine(2.0f * ph + 0.25f)) * amp * att + ck * cka * nz;   /* (the octave above: body, and an uneven wave into the drive) */
             if (rum > 0.0f) {
                 rl1 += 0.012f * (nz - rl1);
                 rl2 += 0.012f * (rl1 - rl2);
@@ -378,7 +427,14 @@ static void render_drums(uint32_t n)
                 r1 *= 0.99985f;
                 r2 *= 0.9985f;
             }
-            x = fm_tanhf(x * 1.3f * dk) * norm * gk + fo;
+            if (ma > 0.0f) {                     /* the skin's second mode */
+                x += ma * amp * sine(mp);
+                mp += 3.16f * v->inc_end;
+                if (mp >= 1.0f)
+                    mp -= 1.0f;
+                ma *= 0.999f;
+            }
+            x = (fold > 0.0f ? 1.15f * sine_any(x * fold) : fm_tanhf(x * 1.3f * dk)) * norm * gk + fo;
             fo *= DR_FADE;
             mixl[j] += x;
             mixr[j] += x;
@@ -388,19 +444,25 @@ static void render_drums(uint32_t n)
             if (ph >= 1.0f)
                 ph -= 1.0f;
             inc += (v->inc_end - inc) * drop;
-            amp *= v->adec;
+            if (hold > 0.0f)                     /* held at full level first: the weight */
+                hold -= 1.0f;
+            else
+                amp *= v->adec;
             att += (1.0f - att) * 0.25f;
             ck *= 0.985f;
         }
         v->ph = ph;
         v->inc = inc;
         v->amp = amp;
+        v->t = hold;
         v->att = att;
         v->idx = ck;
         v->x1 = r1;
         v->x2 = r2;
         v->mph[0] = fm_flush(rl1);
         v->mph[1] = fm_flush(rl2);
+        v->mph[2] = mp;
+        v->mph[3] = ma > 0.001f ? ma : 0.0f;
         v->ph2 = rp;
         v->fo = fm_flush(fo);
         v->xl = x;
@@ -536,16 +598,57 @@ static void chord_change(void)
 /* ---- the bass (amb.c's drone and bass line) */
 static struct {
     float ph[3], sph, mph, note, target, amp;
-    float s[4], c1[4], c2[4];
+    float s[5];                                  /* the ladder: its four stages, its feedback's lag */
     float env;
     float e_in, e_out;                           /* (the drive above 50: its mean squares in and out, for the trim) */
     uint8_t env_up;
 } bass;
-static float bl_env, bl_gate, bass_vol, reso_k = 1.0f, brk, bass_duck;
+static float bl_env, bl_gate, bass_vol, brk, bass_duck;
 static uint8_t bl_up, bl_kick, bl_beat, bl_long, bl_struck;   /* (bl_long: a breakdown's held note; bl_struck: a note this step) */
 static int32_t bl_wait;
 static int bl_pn;
 static uint32_t dr_ctl;
+/* the bass's filter: FMini-1's Minimoog-style ladder (Guilherme Ruppert, GPL-3.0-only, github.com/ruppert/fmini-1,
+ * eng_fmini.c and tools/fmini_filter.py), in float: four tanh stages, the emphasis fed back through a lag pole that puts the
+ * singing pitch at 1.578 x the -3 dB corner, solved with no delay in the loop. Emphasis as its MOOG BASS patch's (half the
+ * singing gain); the corner 0.45 x the old filters' cutoff, where the top end matches theirs (the ladder's knee is softer) */
+#define LAD_FC 0.45f
+#define LAD_K (2.9186f * 0.5f)
+#define LAD_IN 0.6f                              /* (the level into it: the Minimoog's mixer, not overloading every stage) */
+static float lad_G, lad_Gx, lad_c[4], lad_inv;
+static void lad_coefs(float fc)                  /* fc: the -3 dB corner */
+{
+    const float fo = fm_minf(fc * 1.578f, 0.45f * EN_SR), g = fm_tanf(FM_PI * fo * (1.0f / EN_SR)) / 0.6864f,
+                gx = g * 0.7587f, G = g / (1.0f + g), om = 1.0f - G;
+    lad_G = G;
+    lad_Gx = gx / (1.0f + gx);
+    lad_c[3] = om;
+    lad_c[2] = G * om;
+    lad_c[1] = G * G * om;
+    lad_c[0] = G * G * G * om;
+    lad_inv = 1.0f / (1.0f + LAD_K * lad_Gx * G * G * G * G);
+}
+static inline float ladder(float x)
+{
+    float *s = bass.s, v, y1, y2, y3, y4;
+    const float G = lad_G, S = lad_c[0] * s[0] + lad_c[1] * s[1] + lad_c[2] * s[2] + lad_c[3] * s[3],
+                u = (x * LAD_IN - LAD_K * (s[4] + lad_Gx * (S - s[4]))) * lad_inv;   /* (the stages' prediction, the loop solved) */
+    v = G * (fm_tanhf(u) - s[0]);
+    y1 = v + s[0];
+    s[0] = y1 + v;
+    v = G * (fm_tanhf(y1) - s[1]);
+    y2 = v + s[1];
+    s[1] = y2 + v;
+    v = G * (fm_tanhf(y2) - s[2]);
+    y3 = v + s[2];
+    s[2] = y3 + v;
+    v = G * (fm_tanhf(y3) - s[3]);
+    y4 = v + s[3];
+    s[3] = y4 + v;
+    v = lad_Gx * (y4 - s[4]);
+    s[4] += v + v;
+    return y4 * (1.45f / LAD_IN) * 1.5682f;      /* (1.5682: sqrt(1 + LAD_K), the passband the emphasis takes; 1.45 the A/B's level match) */
+}
 static const float GLIDE_K = 1.0f / (0.6f * EN_SR);
 /* the lowest root each style's bass takes, the root in the octave from there: 28 E1 where the bass is a sub under the
  * kick, 33 A1 where it is a line to be heard, 24 C1 for trap's 808 (PERF-1's own: C2 up, an octave high for most keys) */
@@ -583,7 +686,7 @@ static float cut_oct(const drone_snd_t *DS) { return (float)par[Q_DR_CUT] * 0.07
 static float en_cut_hz(void)
 {
     const drone_snd_t *DS = &DRONE_SOUND[(unsigned)par[Q_DR_INST] < EN_NSOUND ? par[Q_DR_INST] : 0];
-    return fm_clampf(mtof(36.0f) * 2.0f * fm_exp2f(cut_oct(DS)), 45.0f, 9000.0f);
+    return LAD_FC * fm_clampf(mtof(36.0f) * 2.0f * fm_exp2f(cut_oct(DS)), 45.0f, 9000.0f);
 }
 static int bl_below(int root)
 {
@@ -783,6 +886,9 @@ static void drum_fire(int d, float vel)
         v->inc_end = f * (1.0f / EN_SR);
         v->adec = fm_expf(-6.9f / ((KK->k_dec0 + KK->k_dec1 * dec) * EN_SR));
         v->ph = 0.0f;
+        v->t = KICK_MODEL[KK->km & 3].hold * (KK->k_dec0 + KK->k_dec1 * dec) * EN_SR;
+        v->mph[2] = 0.0f;
+        v->mph[3] = KICK_MODEL[KK->km & 3].mode;
         v->idx = 1.0f;
         v->x1 = KK->k_rumble;
         v->x2 = KK->k_rumble;
@@ -794,6 +900,9 @@ static void drum_fire(int d, float vel)
         v->inc = KS->sn_f1 * tf * (1.0f / EN_SR);
         v->inc2 = KS->sn_f2 * tf * (1.0f / EN_SR);
         v->ph = v->ph2 = 0.0f;
+        v->mph[0] = 1.6f;                        /* the body starts above its pitch */
+        v->mph[1] = 0.1f * vel;                  /* the noise's tail: quiet, two and a half times as long */
+        v->mph[2] = fm_expf(-6.9f / (2.5f * (0.08f + 0.3f * dec) * KS->sn_dec * EN_SR));
         v->adec = fm_expf(-6.9f / ((0.08f + 0.3f * dec) * KS->sn_dec * EN_SR));
         v->hp = fm_clampf(0.42f * tf, 0.15f, 0.9f);
         break;
@@ -803,6 +912,8 @@ static void drum_fire(int d, float vel)
         v->adec = fm_expf(-6.9f / ((0.1f + 0.4f * dec) * KS->cl_dec * EN_SR));
         v->inc_end = fm_expf(-6.9f / (0.012f * EN_SR));
         v->pend = vel;
+        v->mph[0] = 0.12f * vel;                 /* the tail: quiet, three times as long */
+        v->mph[1] = fm_expf(-6.9f / (3.0f * (0.1f + 0.4f * dec) * KS->cl_dec * EN_SR));
         v->hp = fm_clampf(0.18f * tf, 0.08f, 0.5f);
         break;
     case L_HAT:
@@ -815,13 +926,15 @@ static void drum_fire(int d, float vel)
         v->hp = fm_clampf(0.72f * tf, 0.4f, 1.1f);
         break;
     default: {
-        float f = KP->p_freq * tf;
-        v->inc = f * 2.0f * (1.0f / EN_SR);
+        float f = KP->p_freq * tf * PERC_MODEL[KP->pm].mul;
+        v->inc = f * PERC_MODEL[KP->pm].start * (1.0f / EN_SR);
         v->inc_end = f * (1.0f / EN_SR);
         v->inc2 = KP->p_ratio;
         v->idx = KP->p_idx;
         v->ph = v->ph2 = 0.0f;
-        v->adec = fm_expf(-6.9f / ((0.04f + 0.35f * dec) * EN_SR));
+        v->adec = fm_expf(-6.9f / ((0.04f + 0.35f * dec) * PERC_MODEL[KP->pm].dec * EN_SR));
+        v->x1 = v->x2 = 0.0f;
+        v->hp = fm_clampf(0.9f * tf, 0.3f, 1.2f);   /* (the shaker's filter) */
         break;
     }
     }
@@ -1184,9 +1297,9 @@ static void render_bass(uint32_t n)
     /* the drive knob, 50 the sound as voiced: below, the sound's own drive (before the filter) eased off to clean at 0; above,
      * a second drive after the filter, where its edge is heard; each makes up the level it takes */
     const float drv0 = 1.4f * DS->drive, drv = dk < 50 ? drv0 * fm_maxf((float)dk * 0.02f, 0.05f) : drv0,
-                pk = dk > 50 ? 0.12f * (float)(dk - 50) : 0.0f, pg = post_gain(pk), k1 = reso_k, k2 = 1.4f,
+                pk = dk > 50 ? 0.12f * (float)(dk - 50) : 0.0f, pg = post_gain(pk),
                 trim = bass.e_out > 0.0f ? fm_clampf(fm_sqrtf(bass.e_in / bass.e_out), 0.6f, 1.6f) : 1.0f,
-                g = bass_vol * 0.36f * DS->g / fm_minf(1.0f + 0.15f * (DS->drive - 1.0f), 1.3f) * lane_on_g[6] *
+                g = bass_vol * 0.47f * DS->g / fm_minf(1.0f + 0.15f * (DS->drive - 1.0f), 1.3f) * lane_on_g[6] *
                     fm_tanhf(0.6f * drv0) / fm_tanhf(0.6f * drv),
                 dsaw = DS->saw, dsub = DS->sub, tgt = en_playing ? 1.0f : 0.0f,
                 rate = tgt > 0.0f ? 1.0f / (2.0f * EN_SR) : 1.0f / (0.5f * EN_SR),
@@ -1224,8 +1337,7 @@ static void render_bass(uint32_t n)
             const float oct = cut_oct(DS) + 2.0f * (float)par[Q_DE_AMT] * 0.01f * bass.env -
                               2.0f * fm_maxf(brk, 0.0f) - 1.6f * fm_minf(brk, 0.0f) - 0.35f * bass_duck * pulse_vol;
             const float fc = fm_clampf(f * 2.0f * fm_exp2f(oct), 45.0f, 9000.0f);
-            svf_coefs(bass.c1, fc, k1);
-            svf_coefs(bass.c2, fc * 1.3f, k2);
+            lad_coefs(LAD_FC * fc);
         }
         switch (osc) {
         case DO_REESE: x = (blep_saw(p0, i0) + blep_saw(p2, i2)) * dsaw * 1.35f; break;
@@ -1295,8 +1407,7 @@ static void render_bass(uint32_t n)
             }
             x *= bl_env;
         }
-        x = svf_lp(fm_tanhf(x * drv), bass.c1, &bass.s[0]);   /* the drive before the filter: the filter takes the fizz it adds */
-        x = svf_lp(x, bass.c2, &bass.s[2]);
+        x = ladder(fm_tanhf(x * drv));           /* the drive before the filter: the filter takes the fizz it adds */
         if (pk > 0.0f) {
             const float y = fm_tanhf(pk * x) * pg;
             ein += x * x;
@@ -1305,7 +1416,7 @@ static void render_bass(uint32_t n)
         }
         bass_o[j] = x * amp * g;
     }
-    for (j = 0; j < 4; j++)
+    for (j = 0; j < 5; j++)
         bass.s[j] = fm_flush(bass.s[j]);
     bass.ph[0] = p0;
     bass.ph[1] = p1;
@@ -1337,7 +1448,7 @@ static inline float dj_tap(float x, float *s, int hp)
 static void render_span(int32_t *out, uint32_t n)
 {
     uint32_t j;
-    const float depth = fm_minf(0.55f * KK->duck, 0.85f) * fm_minf(pulse_vol * 1.5f, 1.0f);
+    const float depth = fm_minf(0.275f * KK->duck, 0.425f) * fm_minf(pulse_vol * 1.5f, 1.0f);
     float de = duck_env;
     int l;
     for (l = 0; l <= EN_NDRUM; l++) {            /* the mutes: ~5 ms */
@@ -1468,7 +1579,6 @@ static void apply_all(void)
     }
     bass_vol = (float)(par[Q_BASS] * par[Q_BASS]) * 0.0001f;
     pulse_vol = (float)(par[Q_PULSE] * par[Q_PULSE]) * 0.0001f;
-    reso_k = 1.5f - 0.0138f * (float)par[Q_DR_RES];
     drive_k = 1.0f + 0.04f * (float)par[Q_DRIVE];
     swing = (float)par[Q_SWING] * 0.005f;
     KK = &KITS[(unsigned)par[Q_KIT_KICK] < EN_NKIT ? par[Q_KIT_KICK] : 0];

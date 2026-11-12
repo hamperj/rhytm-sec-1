@@ -296,7 +296,7 @@ int main(int argc, char **argv)
                 en_key(k, 5);
                 r = bass_root();
                 bad += r < BL_LOW[g] || r > BL_LOW[g] + 11 || r % 12 != k;
-                bad += g == 2 && fabsf(en_cut_hz() - 261.6f) > 0.5f;   /* (house's cutoff 40, Pulse: 262 Hz in every key) */
+                bad += g == 2 && fabsf(en_cut_hz() - 117.7f) > 0.5f;   /* (house's cutoff 40, Pulse: the ladder's corner, 118 Hz in every key) */
             }
         for (k = 0; k < 3; k++) {
             int32_t blk[512];
