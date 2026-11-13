@@ -6,5 +6,6 @@
   ],
   "cheat": "https://hamperj.github.io/rhytm-sec-1/cheatsheet.html",
   "image": "docs/screens/02-house-playing.png",
-  "color": "#FF8CB4"
+  "color": "#FF8CB4",
+  "play": "https://joakimeriksson.github.io/fm1-emu/?package=https://hamperj.github.io/rhytm-sec-1/rhytm-sec-1.fwsc&name=RHYTM-SEC-1"
 }

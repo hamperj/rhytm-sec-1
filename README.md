@@ -19,6 +19,7 @@ It uses the drums and bass from deamonSLINKY's [PERF-1](https://github.com/deamo
 - USB audio with stems: a stereo master plus mono bass, kick, snare + clap, and hats + perc, always at full level whatever the MASTER knob is set to
 
 The full control reference is in [the cheat sheet](https://hamperj.github.io/rhytm-sec-1/cheatsheet.html).
+Try it first in your browser, no FM-1 needed: [play RHYTM-SEC-1 in fm1-emu](https://joakimeriksson.github.io/fm1-emu/?package=https://hamperj.github.io/rhytm-sec-1/rhytm-sec-1.fwsc&name=RHYTM-SEC-1).
 
 ## Install
 
