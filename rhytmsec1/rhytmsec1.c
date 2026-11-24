@@ -43,6 +43,7 @@ static const hb_host_t *H;
 #define C_ACC_DIM HB_RGB(105, 55, 75)            /* a step in the pattern that did not play (a break, a fill's gap) */
 #define C_BASS_DIM HB_RGB(95, 30, 30)
 #define C_EMPTY HB_RGB(30, 30, 30)
+#define C_FILL HB_RGB(255, 190, 90)              /* a fill's step still to come in this bar */
 
 /* the player's settings over the style's; bit k of set: field k below is the player's (else the style's) */
 enum { U_TEMPO, U_SWING, U_DENS, U_GHOST, U_LINE, U_CUT, U_DRIVE, U_SOUND, U_BOCT,   /* (U_DRIVE: once the resonance's) */
@@ -212,7 +213,9 @@ static void draw_info(int full)
     H->text(0, 62, 240, 0, s, C_TXT, 1);
 }
 /* the grid: while playing, what each step played over the last 16 (bright), the pattern's steps that did not (dim: a
- * break, a build, a fill's gap), the step playing (white); stopped, the pattern. The bass row is labelled with the
+ * break, a build, a fill's gap), the step playing (white), and in a fill bar the fill's steps still to come (amber; its
+ * rests empty), from the bar's first step; in the bar after, the pattern again where the fill was, from its first step;
+ * stopped, the pattern. The bass row is labelled with the
  * chord's root. */
 static void draw_grid(int full)
 {
@@ -224,11 +227,14 @@ static void draw_grid(int full)
     for (r = 0; r < 7; r++) {
         const uint16_t pat = r < 6 ? gmask[r] : en_bass_mask(), played = en_playing ? en_seen[r] : pat;
         const int muted = en_lane_mute >> r & 1u;
-        const uint16_t on = muted ? C_DIM : r < 6 ? C_ACC : C_BASS, dim = muted ? C_EMPTY : r < 6 ? C_ACC_DIM : C_BASS_DIM;
+        const uint16_t on = muted ? C_DIM : r < 6 ? C_ACC : C_BASS, dim = muted ? C_EMPTY : r < 6 ? C_ACC_DIM : C_BASS_DIM,
+                       ahead = cur >= 0 && r < 6 ? en_fill_span[r] & (uint16_t)(0xFFFFu << (cur + 1)) : 0u,
+                       was = cur >= 0 && r < 6 ? en_fill_was[r] & (uint16_t)(0xFFFFu << (cur + 1)) : 0u;
         lbl[r] = sound && r == rec.sel ? C_GEN : muted ? C_DIM : r < 6 ? C_TXT : C_BASS;
         for (s = 0; s < 16; s++) {
-            const int hit = played >> s & 1u, inpat = pat >> s & 1u;
+            const int inpat = pat >> s & 1u, hit = was >> s & 1u ? inpat : played >> s & 1u;   /* (the fill gone) */
             cell[r][s] = s == cur ? (hit ? 0xFFFFu : inpat ? HB_RGB(90, 90, 90) : HB_RGB(55, 55, 55))
+                       : ahead >> s & 1u ? (en_fill_on[r] >> s & 1u ? (muted ? C_DIM : C_FILL) : C_EMPTY)
                                   : hit ? on : inpat ? dim : C_EMPTY;
         }
     }

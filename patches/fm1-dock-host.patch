@@ -28,7 +28,7 @@ index 72aa1db..4dcdb7d 100644
  #define FL_DATA_HI      0x000E0000u
  #define FL_GLOB_LO      0x000FC000u                /* Felucca superblock / globals */
 diff --git a/firmware/src/dock.c b/firmware/src/dock.c
-index b206076..c75727d 100644
+index b206076..00d4f2f 100644
 --- a/firmware/src/dock.c
 +++ b/firmware/src/dock.c
 @@ -930,12 +930,14 @@ static volatile uint8_t in_render;
@@ -46,6 +46,17 @@ index b206076..c75727d 100644
  };
  
  /* ---- the sound: the module renders (and the EQ filters), the host measures */
+@@ -2744,5 +2746,10 @@ static void app_main(void)
+         ble_watch();
+         if (st_dirty && !held_any && fm1_ms - st_changed > 2000u && fm1_ms - t_notes > 2000u)
+             store_flush();                      /* (interrupts are off while the flash is busy: no module code runs) */
++        {                                       /* (RHYTM-SEC-1) the next pass 1 ms on, or when USB-MIDI comes: fm1-emu skips a */
++            uint32_t t0 = fm1_ticks();          /* wait on TIMER4, where the loop spinning cost a phone its real time (the */
++            while ((uint32_t)(fm1_ticks() - t0) < 1000u * FM1_TICKS_PER_US && mi_r == mi_w)   /* browser version; a longer */
++                ;                               /* wait gains nothing more there) */
++        }
+     }
+ }
 diff --git a/firmware/src/platform.c b/firmware/src/platform.c
 index 4a90a42..605a082 100644
 --- a/firmware/src/platform.c

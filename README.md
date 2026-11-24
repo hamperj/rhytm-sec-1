@@ -102,7 +102,7 @@ A quick overview. For the full detail, including every style, scale, bass line, 
 On the SOUND page, press keys C4–F4 to pick which drum to edit.
 
 **Screen**
-- **Grid:** bright for steps that play, dim for steps that drop out (in a break or build), white for the current step.
+- **Grid:** bright for steps that play, dim for steps that drop out (in a break or build), white for the current step. A fill shows in amber from the start of its bar, so you can see it coming.
 - **Bass row:** labelled with the current chord's root.
 - **Status line:** EXT plus a tempo when following a DAW's clock, BREAK / BUILD for the section, LP / HP for the filter, SPLIT, the bass octave, HOLD and LOCK.
 

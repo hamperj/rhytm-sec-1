@@ -633,21 +633,21 @@ static inline float ladder(float x)
     float *s = bass.s, v, y1, y2, y3, y4;
     const float G = lad_G, S = lad_c[0] * s[0] + lad_c[1] * s[1] + lad_c[2] * s[2] + lad_c[3] * s[3],
                 u = (x * LAD_IN - LAD_K * (s[4] + lad_Gx * (S - s[4]))) * lad_inv;   /* (the stages' prediction, the loop solved) */
-    v = G * (fm_tanhf(u) - s[0]);
-    y1 = v + s[0];
+    v = G * (fm_tanhf(u) - s[0]);                /* the input stage saturates; the three after it are linear: in the emulator the */
+    y1 = v + s[0];                               /* other three tanh cost a phone its real time, and LAD_IN keeps them near-linear */
     s[0] = y1 + v;
-    v = G * (fm_tanhf(y1) - s[1]);
+    v = G * (y1 - s[1]);
     y2 = v + s[1];
     s[1] = y2 + v;
-    v = G * (fm_tanhf(y2) - s[2]);
+    v = G * (y2 - s[2]);
     y3 = v + s[2];
     s[2] = y3 + v;
-    v = G * (fm_tanhf(y3) - s[3]);
+    v = G * (y3 - s[3]);
     y4 = v + s[3];
     s[3] = y4 + v;
     v = lad_Gx * (y4 - s[4]);
     s[4] += v + v;
-    return y4 * (1.45f / LAD_IN) * 1.5682f;      /* (1.5682: sqrt(1 + LAD_K), the passband the emphasis takes; 1.45 the A/B's level match) */
+    return y4 * (1.37f / LAD_IN) * 1.5682f;      /* (1.5682: sqrt(1 + LAD_K), the passband the emphasis takes; 1.37 the A/B's level match, -0.5 dB with the linear stages) */
 }
 static const float GLIDE_K = 1.0f / (0.6f * EN_SR);
 /* the lowest root each style's bass takes, the root in the octave from there: 28 E1 where the bass is a sub under the
@@ -1037,6 +1037,61 @@ static void bl_step(int st, int32_t w)
     bl_go(root + iv, w);
     bl_beat++;
 }
+/* a fill bar's step on lane l: 1 when the fill decides it (its hit, velocity and roll set), 0 when the pattern does.
+ * The fill's kind is chosen on the bar's first step, so the whole bar is known there (fill_plan: the screen shows it ahead) */
+static int fill_step(int l, int st, int *hit, float *vel, int *dbl)
+{
+    if (l == L_PERC && st >= 8 && ((fill_kind == 6 && (SECT[genre].fl & SF_PFILL)) || fill_kind == 7)) {
+        *hit = fill_kind == 7 ? st != 9 && st != 11 : st >= 12 || !(st & 1);
+        *vel = 0.5f + 0.05f * (float)(st - 8);
+        *dbl = fill_kind == 6 && st >= 12 ? 2 : 0;
+        return 1;
+    }
+    if (l != L_SNARE && l != L_HAT)
+        return 0;
+    if (!fill_kind) {
+        *hit = 1;
+        *vel = l == L_SNARE ? 0.35f + 0.04f * (float)st : 0.5f;
+    } else if (l == L_SNARE && st >= 8 && (fill_kind == 7 || (fill_kind == 6 && (SECT[genre].fl & SF_PFILL)))) {
+        *hit = 0;
+    } else if (l == L_SNARE && st >= 8 && fill_kind == 6) {
+        *hit = st >= 12 || !(st & 1);
+        *vel = 0.45f + 0.06f * (float)(st - 8);
+        *dbl = st >= 12 ? 2 : 0;
+    } else if (l == L_SNARE && st >= 8) {
+        const uint8_t fv = FILLS[fill_kind - 1][st];
+        *hit = fv != 0;
+        *vel = 0.1f * (float)fv + 0.1f;
+    } else if (l == L_HAT && st >= 8 && (SECT[genre].fl & SF_HROLL)) {
+        *hit = 1;
+        *vel = (st & 1) ? 0.45f : 0.6f;
+        *dbl = st >= 12 ? 2 : 1;
+    } else {
+        return 0;
+    }
+    return 1;
+}
+volatile uint16_t en_fill_span[EN_NDRUM], en_fill_on[EN_NDRUM];   /* this bar's fill: the steps it decides, and of those the
+                                                 * ones it plays (bit = step; 0 outside a fill bar): the screen's */
+volatile uint16_t en_fill_was[EN_NDRUM];         /* the last bar's fill span: the screen clears it from the bar line */
+static void fill_plan(void)                      /* on the bar's first step, once fill_bar and fill_kind are set */
+{
+    int l, st;
+    for (l = 0; l < EN_NDRUM; l++) {
+        uint16_t span = 0, on = 0;
+        for (st = 0; fill_bar && st < 16; st++) {
+            int hit = 0, dbl = 0;
+            float vel = 0.0f;
+            if (fill_step(l, st, &hit, &vel, &dbl)) {
+                span |= (uint16_t)(1u << st);
+                on |= (uint16_t)((hit != 0) << st);
+            }
+        }
+        en_fill_was[l] = en_fill_span[l];
+        en_fill_span[l] = span;
+        en_fill_on[l] = on;
+    }
+}
 static void tick(void)
 {
     static const uint8_t TRIG_BARS[6] = {0, 1, 2, 4, 8, 0};
@@ -1079,6 +1134,7 @@ static void tick(void)
         if (tb && bars % (uint32_t)tb == 0u)
             bass_env_go();
         bars++;
+        fill_plan();
     }
     en_sec = (uint8_t)sec;
     en_sec_bars = (uint8_t)(sec == SEC_BUILD ? sec_bars : 0);
@@ -1124,31 +1180,8 @@ static void tick(void)
         } else if (sec_req == CMD_BREAK + 1 && (l == L_PERC || l == L_OHAT || (l == L_HAT && (st & 1)))) {
             hit = 0;
         }
-        if (fill && l == L_PERC && st >= 8 && ((fill_kind == 6 && (SECT[genre].fl & SF_PFILL)) || fill_kind == 7)) {
-            hit = fill_kind == 7 ? st != 9 && st != 11 : st >= 12 || !(st & 1);
-            vel = 0.5f + 0.05f * (float)(st - 8);
-            dbl = fill_kind == 6 && st >= 12 ? 2 : 0;
-        }
-        if (fill && (l == L_SNARE || l == L_HAT)) {
-            if (!fill_kind) {
-                hit = 1;
-                vel = l == L_SNARE ? 0.35f + 0.04f * (float)st : 0.5f;
-            } else if (l == L_SNARE && st >= 8 && (fill_kind == 7 || (fill_kind == 6 && (SECT[genre].fl & SF_PFILL)))) {
-                hit = 0;
-            } else if (l == L_SNARE && st >= 8 && fill_kind == 6) {
-                hit = st >= 12 || !(st & 1);
-                vel = 0.45f + 0.06f * (float)(st - 8);
-                dbl = st >= 12 ? 2 : 0;
-            } else if (l == L_SNARE && st >= 8) {
-                const uint8_t fv = FILLS[fill_kind - 1][st];
-                hit = fv != 0;
-                vel = 0.1f * (float)fv + 0.1f;
-            } else if (l == L_HAT && st >= 8 && (SECT[genre].fl & SF_HROLL)) {
-                hit = 1;
-                vel = (st & 1) ? 0.45f : 0.6f;
-                dbl = st >= 12 ? 2 : 1;
-            }
-        }
+        if (fill)
+            fill_step(l, st, &hit, &vel, &dbl);
         if (chop > 0.0f && sec == SEC_GROOVE) {
             if (!hit && l == L_SNARE && frand() < 0.16f * chop) {
                 hit = 1;
@@ -1643,8 +1676,10 @@ static void en_play(int on)
 {
     if (on && !en_playing) {
         int l;
-        for (l = 0; l < EN_NDRUM; l++)
+        for (l = 0; l < EN_NDRUM; l++) {
             en_seen[l] = gmask[l];               /* (the screen's trail starts from the pattern) */
+            en_fill_span[l] = en_fill_on[l] = en_fill_was[l] = 0u;
+        }
         en_seen[EN_NDRUM] = en_bass_mask();
         sixteenth = 0;
         bars = 0;
